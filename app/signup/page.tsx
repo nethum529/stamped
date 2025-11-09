@@ -63,7 +63,8 @@ export default function SignUpPage() {
 
       // Redirect to login with verification message
       if (result.requiresVerification) {
-        router.push(`/login?verified=pending&email=${encodeURIComponent(formData.email)}`)
+        // Use window.location for a proper navigation with query params
+        window.location.href = `/login?verified=pending&email=${encodeURIComponent(formData.email)}`
       } else {
         // User is automatically signed in, redirect to dashboard
         router.push('/dashboard')
@@ -78,10 +79,10 @@ export default function SignUpPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100/30 to-neutral-50 p-4 md:p-6">
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl transition-all duration-300 hover:shadow-3xl">
+      <div className="w-full max-w-md">
+        <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl transition-shadow duration-200 hover:shadow-3xl">
           <div className="mb-8">
-            <h2 className="text-3xl font-semibold text-neutral-900 mb-2">
+            <h2 className="text-3xl font-semibold text-neutral-900 mb-2 font-sans">
               Create Account
             </h2>
             <p className="text-neutral-600">
@@ -90,7 +91,7 @@ export default function SignUpPage() {
           </div>
 
           {error && (
-            <Alert variant="error" className="mb-6 animate-fade-in">
+            <Alert variant="error" className="mb-6">
               {error}
             </Alert>
           )}

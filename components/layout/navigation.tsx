@@ -118,8 +118,10 @@ export function Navigation({ userRole = 'compliance', userName = 'User' }: Navig
             Settings
           </Link>
           <button
-            onClick={() => {
-              // handle logout, add real auth later
+            onClick={async () => {
+              const { authService } = await import('@/lib/auth/service')
+              await authService.signOut()
+              window.location.href = '/login'
             }}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-all duration-200 hover:bg-neutral-100 hover:translate-x-1"
           >

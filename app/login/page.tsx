@@ -1,29 +1,43 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import { Eye, EyeOff, Mail } from 'lucide-react'
+import { Eye, EyeOff, Mail, CheckCircle2 } from 'lucide-react'
 import { authService } from '@/lib/auth/service'
 import { validateSignInForm } from '@/lib/auth/validation'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetEmailSent, setResetEmailSent] = useState(false)
+  const [verificationMessage, setVerificationMessage] = useState<{email: string} | null>(null)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Check for verification pending message from signup
+  useEffect(() => {
+    const verified = searchParams.get('verified')
+    const email = searchParams.get('email')
+    
+    console.log('Login page - verified:', verified, 'email:', email) // Debug log
+    
+    if (verified === 'pending' && email) {
+      setVerificationMessage({ email: decodeURIComponent(email) })
+      setFormData(prev => ({ ...prev, email: decodeURIComponent(email) }))
+    }
+  }, [searchParams])
 
   const validateForm = () => {
     const validation = validateSignInForm(formData.email, formData.password)
@@ -34,6 +48,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setVerificationMessage(null) // Clear verification message on submit
     
     if (!validateForm()) return
     
@@ -103,7 +118,8 @@ export default function LoginPage() {
       const result = await authService.resendVerificationEmail(formData.email)
       
       if (result.success) {
-        alert('Verification email sent! Please check your inbox.')
+        setVerificationMessage({ email: formData.email })
+        setError('')
       } else {
         setError(result.error?.message || 'Failed to resend verification email')
       }
@@ -124,7 +140,7 @@ export default function LoginPage() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
                 <Mail className="h-8 w-8 text-green-600" />
               </div>
-              <h2 className="mb-2 text-2xl font-semibold text-neutral-900">
+              <h2 className="mb-2 text-2xl font-semibold text-neutral-900 font-sans">
                 Check Your Email
               </h2>
               <p className="mb-6 text-neutral-600">
@@ -155,7 +171,7 @@ export default function LoginPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100/30 to-neutral-50 p-4 md:p-6">
         <div className="w-full max-w-md">
           <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl">
-            <h2 className="mb-2 text-2xl font-semibold text-neutral-900">
+            <h2 className="mb-2 text-2xl font-semibold text-neutral-900 font-sans">
               Reset Password
             </h2>
             <p className="mb-6 text-sm text-neutral-600">
@@ -206,29 +222,43 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100/30 to-neutral-50 p-4 md:p-6">
       <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl transition-all duration-300 hover:shadow-3xl">
-          <div className="mb-6 flex items-center gap-4">
-            <div className="relative h-20 w-60 flex-shrink-0">
-              <Image
-                src="/logo.png"
-                alt="Stamped"
-                fill
-                className="object-contain object-left"
-                priority
-              />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-sans text-3xl font-semibold text-neutral-900">
-                Welcome back
-              </h2>
-              <p className="mt-1 font-sans italic text-base text-neutral-600">
-                compliance made simple.
-              </p>
-              <p className="mt-2 text-sm text-neutral-600">
-                Sign in to your account to continue
-              </p>
-            </div>
+        <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl transition-shadow duration-200 hover:shadow-3xl">
+          <div className="mb-8">
+            <h2 className="text-3xl font-semibold text-neutral-900 mb-2 font-sans">
+              Welcome Back
+            </h2>
+            <p className="text-neutral-600">
+              Sign in to your account to continue
+            </p>
           </div>
+
+          {/* Email Verification Success Message */}
+          {verificationMessage && (
+            <Alert 
+              variant="success" 
+              className="mb-6"
+            >
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-green-900 mb-1">Account Created Successfully!</p>
+                  <p className="text-sm text-green-800">
+                    We've sent a verification link to <strong>{verificationMessage.email}</strong>
+                  </p>
+                  <p className="text-sm text-green-800 mt-2">
+                    Please check your email and click the verification link before signing in.
+                  </p>
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="text-sm font-medium text-green-700 hover:text-green-900 underline mt-2 transition-colors"
+                  >
+                    Resend verification email
+                  </button>
+                </div>
+              </div>
+            </Alert>
+          )}
 
           {error && (
             <Alert variant="error" className="mb-6">
@@ -266,7 +296,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-9 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-3 top-9 text-neutral-400 hover:text-neutral-600 transition-colors"
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" />
@@ -277,17 +307,17 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-500"
+                  className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-500 transition-all"
                 />
                 <span className="text-sm text-neutral-700">Remember me</span>
               </label>
               <button
                 type="button"
                 onClick={() => setShowForgotPassword(true)}
-                className="text-sm font-medium text-primary-600 hover:text-primary-700"
+                className="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
               >
                 Forgot password?
               </button>
@@ -300,7 +330,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={handleResendVerification}
-                    className="font-medium text-primary-600 hover:text-primary-700"
+                    className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
                     disabled={loading}
                   >
                     Resend it
@@ -315,7 +345,7 @@ export default function LoginPage() {
               size="lg"
               loading={loading}
             >
-              Sign in
+              Sign In
             </Button>
           </form>
 
@@ -323,26 +353,25 @@ export default function LoginPage() {
             Don't have an account?{' '}
             <Link
               href="/signup"
-              className="font-medium text-primary-600 hover:text-primary-700"
+              className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
             >
               Sign up
             </Link>
           </div>
-
-          <div className="mt-4 text-center text-sm text-neutral-600">
-            Need help?{' '}
-            <button className="font-medium text-primary-600 hover:text-primary-700">
-              Contact support
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-6 text-center">
-          <p className="text-xs text-neutral-500">
-            © 2025 Stamped. All rights reserved.
-          </p>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100/30 to-neutral-50">
+        <div className="text-neutral-600">Loading...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
