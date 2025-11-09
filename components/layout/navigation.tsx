@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/hooks/useAuth'
 import {
   LayoutDashboard,
   Users,
@@ -13,6 +14,7 @@ import {
   AlertCircle,
   Settings,
   LogOut,
+  User as UserIcon,
 } from 'lucide-react'
 
 interface NavigationProps {
@@ -53,8 +55,13 @@ const navigationItems = [
   },
 ]
 
-export function Navigation({ userRole = 'compliance', userName = 'User' }: NavigationProps) {
+export function Navigation({ userRole = 'compliance', userName: userNameProp }: NavigationProps) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  
+  // Use auth user name if available, fallback to prop, then 'User'
+  const userName = user?.name || userNameProp || 'User'
+  const avatarUrl = user?.avatarUrl
 
   const visibleItems = navigationItems.filter(item =>
     item.roles.includes(userRole)
@@ -105,8 +112,23 @@ export function Navigation({ userRole = 'compliance', userName = 'User' }: Navig
       {/* user info at bottom */}
       <div className="border-t border-neutral-200/50 p-4">
         <div className="mb-3 rounded-lg bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3 shadow-sm">
-          <p className="text-sm font-medium text-neutral-900">{userName}</p>
-          <p className="text-xs text-neutral-600 capitalize">{userRole} Officer</p>
+          <div className="flex items-center gap-3">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={userName}
+                className="h-10 w-10 rounded-full object-cover border-2 border-neutral-200"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                <UserIcon className="h-5 w-5 text-primary-600" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-neutral-900 truncate">{userName}</p>
+              <p className="text-xs text-neutral-600 capitalize">{userRole} Officer</p>
+            </div>
+          </div>
         </div>
         
         <div className="space-y-1">

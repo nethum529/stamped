@@ -1,8 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Bell, Search } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Search } from 'lucide-react'
+import { NotificationCenter } from '@/components/notifications/notification-center'
 
 interface HeaderProps {
   title?: string
@@ -26,15 +26,8 @@ export function Header({ title, notificationCount = 0 }: HeaderProps) {
           <kbd className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs">⌘K</kbd>
         </button>
 
-        {/* notifications bell */}
-        <button className="relative rounded-lg p-2 text-neutral-600 transition-colors hover:bg-neutral-100">
-          <Bell className="h-5 w-5" />
-          {notificationCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-error-500 text-xs text-white">
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </span>
-          )}
-        </button>
+        {/* notifications */}
+        <NotificationCenter />
       </div>
     </header>
   )

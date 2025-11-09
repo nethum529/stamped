@@ -1,185 +1,243 @@
-# Goldman Sachs - Client & Vendor Onboarding Platform
+# Stamped - Secure & Intelligent Onboarding Hub
 
-A beautiful, modern web application for streamlined client and vendor onboarding with automated risk assessment and compliance monitoring.
+**Status:** ✅ **80% Complete - Demo Ready**
 
-## Features
+A comprehensive compliance and onboarding platform built with Next.js 13+, TypeScript, Tailwind CSS, and Framer Motion.
 
-### Core Functionality
-- **Dual Workflow**: Seamless client and vendor onboarding processes
-- **Multi-Step Forms**: Intuitive step-by-step data collection
-- **Document Management**: Drag-and-drop file uploads with preview and download
-- **Smart Automation**: Automated sanctions screening and risk scoring
-- **Role-Based Access**: Customized dashboards for different user roles
-- **Adverse Media Monitoring**: Real-time negative news detection
+---
 
-### Design Excellence
-- **Beautiful UI**: Apple-inspired design with rounded corners and smooth transitions
-- **Consistent Design System**: Comprehensive component library with variants
-- **Responsive**: Works perfectly on desktop, tablet, and mobile devices
-- **Accessible**: WCAG AA compliant with keyboard navigation support
-- **Performance Optimized**: Fast load times and smooth animations
+## ✨ Features
 
-## Tech Stack
+### 🎨 **Beautiful, Investor-Ready Design**
+- Professional teal/turquoise/navy color scheme
+- Smooth, slow animations throughout
+- Glassmorphism and modern UI effects
+- Typewriter hero headline animation
+- Consistent branding with integrated logo
 
-- **Framework**: Next.js 14 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS with custom design tokens
-- **UI Components**: Custom component library built with Radix UI primitives
-- **Forms**: React Hook Form with Zod validation
-- **Icons**: Lucide React
-- **Animations**: Framer Motion
+### 👥 **Multi-Role Portals**
 
-## Getting Started
+#### **Client Portal**
+- Dashboard with onboarding status
+- Drag-and-drop document upload
+- Real-time chat with officers
+- AI chatbot assistant
+- Profile management
+
+#### **Relationship Manager**  
+- Lead management with AI scoring (0-100)
+- Kanban pipeline board (drag & drop)
+- Pipeline analytics & conversion metrics
+- Top prospects dashboard
+- New lead creation
+
+#### **Compliance Officer**
+- Document review workflow (approve/reject)
+- PDF/image annotation tools
+- Risk assessment dashboard
+- Pending reviews & high-risk alerts
+
+#### **Risk Analyst**
+- Risk distribution charts
+- Detailed entity analysis
+- Adverse media & sanctions screening
+- Report generation & scheduling
+- Geographic risk heatmaps
+
+#### **Executive**
+- High-level KPIs dashboard
+- Revenue & pipeline trends
+- Top performer rankings
+- AI-powered strategic insights
+- Market trend analysis
+
+### 🤖 **AI Features**
+- **AI Lead Scoring**: Automated scoring with detailed breakdown
+- **AI Chatbot**: Context-aware assistant for clients
+- **AI Insights**: Market trends, risk predictions, growth opportunities
+
+### 🔔 **Real-time Features**
+- Notification center with unread badges
+- Mark as read / delete notifications
+- Action links from notifications
+- Persistent chat history (localStorage)
+
+### 📊 **Comprehensive Data Models**
+- 20+ mock leads with realistic data
+- Multiple clients, vendors, documents
+- Risk scores with detailed breakdowns
+- Messages & conversations
+- Centralized mock service with API delays
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 
 ### Installation
 
-1. Clone the repository
 ```bash
-git clone <repository-url>
-cd untitled-folder
-```
-
-2. Install dependencies
-```bash
+# Install dependencies
 npm install
-```
 
-3. Run the development server
-```bash
+# Run development server
 npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+Visit `http://localhost:3000`
 
-## Project Structure
+---
+
+## 📁 Project Structure
 
 ```
-├── app/                    # Next.js app directory
-│   ├── page.tsx           # Login page
-│   ├── dashboard/         # Dashboard pages
-│   ├── clients/           # Client management
-│   ├── vendors/           # Vendor management
-│   ├── compliance/        # Compliance monitoring
-│   └── adverse-media/     # Adverse media scanning
-├── components/
-│   ├── ui/                # Reusable UI components
-│   └── layout/            # Layout components
-├── lib/                   # Utility functions
-└── public/                # Static assets
+stamped/
+├── app/                      # Next.js 13+ App Router
+│   ├── (landing)/           # Landing page
+│   ├── client-portal/       # Client portal pages
+│   ├── leads/               # Lead management
+│   ├── compliance/          # Compliance officer portal
+│   ├── risk-analyst/        # Risk analyst portal
+│   └── executive/           # Executive dashboard
+├── components/              # React components
+│   ├── ui/                  # Reusable UI components
+│   ├── layout/              # Layout components
+│   ├── leads/               # Lead-specific components
+│   ├── compliance/          # Compliance components
+│   ├── client-portal/       # Client portal components
+│   ├── notifications/       # Notification center
+│   └── ai-chatbot/          # AI chatbot
+├── lib/                     # Utilities & services
+│   ├── types/               # TypeScript types
+│   ├── services/            # Mock services & AI
+│   ├── mock-data/           # Mock data generators
+│   └── utils.ts             # Utility functions
+└── public/                  # Static assets
 ```
 
-## Key Pages
+---
 
-### Authentication
-- **Login**: Beautiful login page with form validation
+## 🎯 Key Pages
 
-### Dashboard
-- **Overview**: Role-based dashboard with stats, pending tasks, and recent activity
-- **Quick Actions**: Easy access to common tasks
+### Landing & Auth
+- `/` - Landing page with hero, features, process
+- `/login` - Main login
+- `/client-login` - Client-specific login
+- `/employee-login` - Employee-specific login
+- `/signup` - Registration
 
-### Client/Vendor Management
-- **List View**: Searchable table with filters
-- **New Entry**: Multi-step onboarding form
-- **Detail View**: Comprehensive profile with tabs for overview, documents, compliance, and history
+### Client Portal
+- `/client-portal/dashboard` - Onboarding status
+- `/client-portal/documents` - Upload & track documents
+- `/client-portal/messages` - Chat with officer
+- `/client-portal/profile` - Profile management
 
-### Compliance
-- **Sanctions Screening**: Real-time screening against sanctions databases
-- **Risk Assessment**: ML-powered risk scoring
-- **KYC Review**: Document verification workflow
+### Employee Portals
+- `/dashboard` - Relationship Manager dashboard
+- `/leads` - Lead list with filters
+- `/leads/pipeline` - Kanban board
+- `/compliance/documents` - Document review
+- `/compliance/risk-assessment` - Risk scores
+- `/risk-analyst/dashboard` - Risk metrics
+- `/risk-analyst/analysis/[id]` - Detailed analysis
+- `/risk-analyst/reports` - Report generation
+- `/executive/dashboard` - Executive KPIs
+- `/executive/insights` - Strategic insights
 
-### Adverse Media
-- **Search**: Generate reports for any entity
-- **Results**: Detailed findings with severity indicators
-- **History**: Previously generated reports
+---
 
-## Design Principles
-
-Following Steve Jobs' philosophy:
-
-1. **Simplicity**: Remove everything unnecessary
-2. **Clarity**: Crystal clear information hierarchy
-3. **Beauty**: Every pixel is intentional
-4. **Delight**: Subtle animations create joy
-5. **Consistency**: Unified design language
-6. **Focus**: One primary action per screen
-7. **Whitespace**: Generous spacing for breathability
-8. **Typography**: Beautiful and expressive text
-9. **Feedback**: Immediate feedback for all actions
-10. **Perfectionism**: Details matter
-
-## Component Library
-
-### Core Components
-- **Button**: Primary, secondary, ghost, danger variants
-- **Input**: Text inputs with labels and error states
-- **Select**: Dropdown with search
-- **Textarea**: Multi-line text input
-- **Card**: Container with header, content, footer
-- **Badge**: Status and category indicators
-- **Modal**: Overlays with backdrop blur
-- **Tabs**: Tab navigation
-- **Table**: Data tables with sorting
-- **Alert**: Contextual alerts
-- **Progress**: Progress bars
-- **Stepper**: Multi-step progress indicator
-- **Timeline**: Activity timeline
-- **FileUpload**: Drag-and-drop file upload
-- **EmptyState**: Beautiful empty states
-- **Skeleton**: Loading placeholders
-
-### Layout Components
-- **Navigation**: Sidebar navigation
-- **Header**: Top header with search and notifications
-- **Breadcrumbs**: Navigation hierarchy
-- **DashboardShell**: Main layout wrapper
-
-## Customization
+## 🎨 Design System
 
 ### Colors
-Edit `tailwind.config.ts` to customize the color palette:
-- Primary: Professional blue
-- Success: Green
-- Warning: Amber
-- Error: Red
-- Neutral: Gray scale
+- **Primary**: Teal (#14b8a6)
+- **Turquoise**: #06b6d4
+- **Navy**: #0f172a
+- **Neutral**: Grays (#f9fafb to #0f172a)
 
 ### Typography
-System fonts for optimal performance and native feel.
+- **Sans-serif**: Inter (internal pages)
+- **Serif**: Playfair Display (landing headings)
 
-### Spacing
-8px grid system for consistent spacing.
+### Animations
+- Framer Motion throughout
+- Slow, smooth transitions (0.3-0.8s)
+- Typewriter effect on hero
+- Fade-in, slide-up, scale animations
 
-## Performance
+---
 
-- **Code Splitting**: Automatic route-based splitting
-- **Optimized Images**: Next.js Image component
-- **60fps Animations**: GPU-accelerated transitions
-- **Lazy Loading**: Components load on demand
+## 🔧 Tech Stack
 
-## Accessibility
+- **Framework**: Next.js 13+ (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+- **File Upload**: react-dropzone
+- **Utilities**: class-variance-authority, clsx
 
-- **Keyboard Navigation**: Full keyboard support
-- **Screen Reader**: ARIA labels and semantic HTML
-- **Color Contrast**: WCAG AA compliant
-- **Focus Indicators**: Clear focus states
-- **Error Messages**: Accessible error communication
+---
 
-## Browser Support
+## ⚠️ Important Notes
 
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
+### Mock Data
+- All features use **mock data** for demonstration
+- No actual backend or database connected
+- File uploads are simulated (no storage)
+- Authentication is mock (no real auth)
 
-## License
+### AI Features
+- AI lead scoring uses **rule-based logic** (no ML models)
+- Chatbot uses **predefined responses** (no NLP)
+- AI insights are **manually curated** (no actual AI)
 
-© 2024 Goldman Sachs. All rights reserved.
+### Real-time Features
+- Notifications are **simulated** (no WebSocket)
+- Chat history uses **localStorage** (no persistence)
 
-## Support
+---
 
-For support, contact your system administrator or the development team.
+## 📝 Next Steps
 
+### For MVP Launch
+1. Connect to real backend API
+2. Implement actual authentication
+3. Add file storage (S3, etc.)
+4. Add error boundaries
+5. Complete mobile testing
+
+### Future Enhancements
+1. Role-based route protection
+2. Real-time WebSocket connection
+3. Actual ML models for AI features
+4. Lifecycle management automation
+5. Workflow automation triggers
+6. Performance optimization
+7. Comprehensive documentation
+
+---
+
+## 📄 License
+
+Proprietary - Stamped Inc.
+
+---
+
+## 👨‍💻 Development
+
+Built with passion and attention to detail.
+
+**Every pixel matters.** ✨
+
+---
+
+*Last Updated: November 9, 2025*

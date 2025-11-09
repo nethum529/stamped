@@ -7,13 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import { User, Bell, Shield, Upload, X, Camera } from 'lucide-react'
+import { User, Bell, Shield, Upload, X, Camera, Mail, CheckCircle2 } from 'lucide-react'
 import { authService } from '@/lib/auth/service'
 import { createClient } from '@/lib/supabase/client'
+import { requestEmailVerification, verifyCode } from '@/lib/auth/verification'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 export default function SettingsPage() {
   const router = useRouter()
   const supabase = createClient()
+  const { user: authUser, refreshUser } = useAuth()
   
   const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -29,6 +32,8 @@ export default function SettingsPage() {
     newPassword: '',
     confirmPassword: '',
   })
+  const [verificationStep, setVerificationStep] = useState<'initial' | 'code' | 'success'>('initial')
+  const [verificationCode, setVerificationCode] = useState('')
   const [notifications, setNotifications] = useState({
     highRiskAlerts: true,
     documentUploads: true,
@@ -77,6 +82,7 @@ export default function SettingsPage() {
 
       setSuccess('Profile updated successfully!')
       loadUserData()
+      refreshUser() // Refresh auth user to update name everywhere
     } catch (err: any) {
       setError(err.message || 'Failed to update profile')
     } finally {
@@ -132,6 +138,7 @@ export default function SettingsPage() {
 
       setProfileData(prev => ({ ...prev, avatarUrl: urlData.publicUrl }))
       setSuccess('Profile picture updated!')
+      refreshUser() // Refresh to show avatar everywhere
     } catch (err: any) {
       console.error('Upload error:', err)
       setError(err.message || 'Failed to upload image')
@@ -155,6 +162,7 @@ export default function SettingsPage() {
 
       setProfileData(prev => ({ ...prev, avatarUrl: '' }))
       setSuccess('Profile picture removed')
+      refreshUser() // Refresh to update everywhere
     } catch (err: any) {
       setError(err.message || 'Failed to remove image')
     } finally {
@@ -162,38 +170,84 @@ export default function SettingsPage() {
     }
   }
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
+  const handleRequestPasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
     setSuccess('')
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError('Passwords do not match')
-      setLoading(false)
       return
     }
 
     if (passwordData.newPassword.length < 8) {
       setError('Password must be at least 8 characters')
-      setLoading(false)
       return
     }
 
+    setLoading(true)
+
     try {
+      // Request email verification
+      const result = await requestEmailVerification(profileData.email, 'password_change')
+      
+      if (!result.success) {
+        setError(result.error || 'Failed to send verification code')
+        return
+      }
+
+      setVerificationStep('code')
+      setSuccess('Verification code sent to your email. Please check your inbox.')
+    } catch (err: any) {
+      setError(err.message || 'Failed to request verification')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyAndChangePassword = async () => {
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      // Verify the code
+      const verification = verifyCode(verificationCode, 'password_change')
+      
+      if (!verification.verified) {
+        setError(verification.error || 'Invalid verification code')
+        setLoading(false)
+        return
+      }
+
+      // Change the password
       const result = await authService.updatePassword(passwordData.newPassword)
       
       if (!result.success) {
         throw new Error(result.error?.message || 'Failed to update password')
       }
 
+      setVerificationStep('success')
       setSuccess('Password updated successfully!')
       setPasswordData({ newPassword: '', confirmPassword: '' })
+      setVerificationCode('')
+      
+      // Reset to initial step after 3 seconds
+      setTimeout(() => {
+        setVerificationStep('initial')
+      }, 3000)
     } catch (err: any) {
       setError(err.message || 'Failed to update password')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCancelPasswordChange = () => {
+    setVerificationStep('initial')
+    setVerificationCode('')
+    setError('')
+    setSuccess('')
   }
 
   const handleSignOut = async () => {
@@ -362,31 +416,104 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <Input
-                label="New Password"
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) =>
-                  setPasswordData({ ...passwordData, newPassword: e.target.value })
-                }
-                placeholder="Enter new password"
-                autoComplete="new-password"
-              />
-              <Input
-                label="Confirm New Password"
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) =>
-                  setPasswordData({ ...passwordData, confirmPassword: e.target.value })
-                }
-                placeholder="Confirm new password"
-                autoComplete="new-password"
-              />
-              <Button type="submit" variant="outline" loading={loading}>
-                Change Password
-              </Button>
-            </form>
+            {verificationStep === 'initial' && (
+              <form onSubmit={handleRequestPasswordChange} className="space-y-4">
+                <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 mb-4">
+                  <div className="flex gap-3">
+                    <Mail className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Email Verification Required</p>
+                      <p className="text-sm text-blue-800 mt-1">
+                        For security, we'll send a verification code to <strong>{profileData.email}</strong> before changing your password.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <Input
+                  label="New Password"
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) =>
+                    setPasswordData({ ...passwordData, newPassword: e.target.value })
+                  }
+                  placeholder="Enter new password"
+                  autoComplete="new-password"
+                />
+                <Input
+                  label="Confirm New Password"
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                  }
+                  placeholder="Confirm new password"
+                  autoComplete="new-password"
+                />
+                <Button type="submit" variant="outline" loading={loading}>
+                  Request Verification Code
+                </Button>
+              </form>
+            )}
+
+            {verificationStep === 'code' && (
+              <div className="space-y-4">
+                <Alert variant="success">
+                  We've sent a 6-digit verification code to <strong>{profileData.email}</strong>
+                </Alert>
+                
+                <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-4">
+                  <p className="text-sm text-yellow-900">
+                    <strong>Development Mode:</strong> Check your browser console for the verification code.
+                    In production, this will be sent to your email.
+                  </p>
+                </div>
+
+                <Input
+                  label="Verification Code"
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                />
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleCancelPasswordChange}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleVerifyAndChangePassword}
+                    loading={loading}
+                    disabled={verificationCode.length !== 6}
+                    className="flex-1"
+                  >
+                    Verify & Change Password
+                  </Button>
+                </div>
+                
+                <button
+                  onClick={handleRequestPasswordChange}
+                  disabled={loading}
+                  className="text-sm text-primary-600 hover:text-primary-700 transition-colors"
+                >
+                  Resend verification code
+                </button>
+              </div>
+            )}
+
+            {verificationStep === 'success' && (
+              <Alert variant="success">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span>Password changed successfully!</span>
+                </div>
+              </Alert>
+            )}
 
             <div className="rounded-lg bg-neutral-50 p-4 border-t border-neutral-200 mt-6">
               <div className="flex items-start justify-between">
