@@ -44,7 +44,7 @@ export default function ForbiddenPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="mb-2 text-6xl font-serif font-bold text-neutral-900"
+              className="mb-2 text-6xl font-sans font-bold text-neutral-900"
             >
               403
             </motion.h1>

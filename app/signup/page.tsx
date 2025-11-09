@@ -53,7 +53,7 @@ export default function SignUpPage() {
         email: formData.email,
         password: formData.password,
         name: formData.name,
-        userType: formData.userType,
+        user_type: formData.userType,
         role: formData.userType === 'employee' ? formData.role : undefined,
         companyName: formData.userType === 'client' ? formData.companyName : undefined,
       })
@@ -70,8 +70,8 @@ export default function SignUpPage() {
 
       // Redirect to login with verification message
       if (result.requiresVerification) {
-        // Use window.location for a proper navigation with query params
-        window.location.href = `/login?verified=pending&email=${encodeURIComponent(formData.email)}`
+        // Use router.push for proper Next.js navigation
+        router.push(`/login?verified=pending&email=${encodeURIComponent(formData.email)}`)
       } else {
         // User is automatically signed in, redirect to dashboard
         router.push('/dashboard')

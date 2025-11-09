@@ -27,11 +27,13 @@ import { mockRiskScores } from '@/lib/mock-data/risk-scores'
 export default function ComplianceDashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
+  const [complianceScore, setComplianceScore] = useState<number>(0)
+  const [riskScores, setRiskScores] = useState<RiskScoreData[]>([])
 
   useEffect(() => {
     async function fetchData() {
       try {
-        setLoading(false)
+        setLoading(true)
         // Fetch all documents for review
         const allClients = await mockDataService.getClients()
         const allDocs: Document[] = []
@@ -42,6 +44,13 @@ export default function ComplianceDashboardPage() {
         }
         
         setDocuments(allDocs)
+
+        // Get risk scores - using mock data for now, but could come from service
+        setRiskScores(mockRiskScores)
+
+        // Calculate compliance score - this will update automatically when documents change
+        const scoreData = await mockDataService.calculateComplianceScore()
+        setComplianceScore(scoreData.score)
       } catch (error) {
         console.error('Failed to load dashboard data:', error)
       } finally {
@@ -50,6 +59,17 @@ export default function ComplianceDashboardPage() {
     }
 
     fetchData()
+    
+    // Set up interval to refresh compliance score every 30 seconds to ensure it stays updated
+    const interval = setInterval(() => {
+      mockDataService.calculateComplianceScore().then(scoreData => {
+        setComplianceScore(scoreData.score)
+      }).catch(err => {
+        console.error('Failed to refresh compliance score:', err)
+      })
+    }, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   // Calculate document stats
@@ -62,14 +82,14 @@ export default function ComplianceDashboardPage() {
 
   // Calculate risk stats
   const riskStats = {
-    critical: mockRiskScores.filter((s) => s.riskLevel === 'Critical').length,
-    high: mockRiskScores.filter((s) => s.riskLevel === 'High').length,
-    medium: mockRiskScores.filter((s) => s.riskLevel === 'Medium').length,
-    low: mockRiskScores.filter((s) => s.riskLevel === 'Low').length,
+    critical: riskScores.filter((s) => s.riskLevel === 'Critical').length,
+    high: riskScores.filter((s) => s.riskLevel === 'High').length,
+    medium: riskScores.filter((s) => s.riskLevel === 'Medium').length,
+    low: riskScores.filter((s) => s.riskLevel === 'Low').length,
   }
 
   // Get high-risk entities
-  const highRiskEntities = mockRiskScores
+  const highRiskEntities = riskScores
     .filter((s) => s.riskLevel === 'High' || s.riskLevel === 'Critical')
     .slice(0, 5)
 
@@ -119,11 +139,11 @@ export default function ComplianceDashboardPage() {
     },
     {
       title: 'Compliance Score',
-      value: '94%',
-      change: '+3% vs target',
+      value: `${complianceScore}%`,
+      change: complianceScore >= 90 ? 'Excellent compliance' : complianceScore >= 75 ? 'Good compliance' : 'Needs improvement',
       icon: Shield,
-      variant: 'success' as const,
-      trend: 'up',
+      variant: complianceScore >= 90 ? ('success' as const) : complianceScore >= 75 ? ('warning' as const) : ('error' as const),
+      trend: complianceScore >= 90 ? 'up' : complianceScore >= 75 ? 'neutral' : 'down',
     },
   ]
 

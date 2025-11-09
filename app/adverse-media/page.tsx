@@ -19,8 +19,10 @@ import {
   FileText,
   Download,
 } from 'lucide-react'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 export default function AdverseMediaPage() {
+  const { user } = useAuth()
   const [entityName, setEntityName] = useState('')
   const [dateRange, setDateRange] = useState('30')
   const [loading, setLoading] = useState(false)
@@ -121,7 +123,7 @@ export default function AdverseMediaPage() {
     <DashboardShell
       title="Adverse Media Monitoring"
       userRole="compliance"
-      userName="John Smith"
+      userName={user?.name || undefined}
     >
       <div className="space-y-6">
         {/* search form for adverse media */}

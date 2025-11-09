@@ -15,6 +15,7 @@ import { mockDataService } from '@/lib/services/mock-data-service'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { BackButton } from '@/components/layout/back-button'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const steps = [
   { label: 'Basic Information' },
@@ -52,6 +53,7 @@ const entityTypes = [
 ]
 
 export default function NewClientPage() {
+  const { user } = useAuth()
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -225,7 +227,7 @@ export default function NewClientPage() {
   }
 
   return (
-    <DashboardShell title="New Client" userRole="compliance" userName="John Smith">
+    <DashboardShell title="New Client" userRole="compliance" userName={user?.name || undefined}>
       <div className="mx-auto max-w-4xl space-y-6">
         <BackButton href="/clients" label="Back to Clients" />
         

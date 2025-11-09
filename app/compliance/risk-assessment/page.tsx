@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import RiskScoreCard, { RiskScoreData, RiskLevel } from '@/components/compliance/risk-score-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,11 +10,15 @@ import { Loader2, Shield, AlertTriangle, CheckCircle, AlertCircle, Search, Filte
 import { motion } from 'framer-motion'
 import { mockRiskScores } from '@/lib/mock-data/risk-scores'
 import { BackButton } from '@/components/layout/back-button'
+import { DashboardShell } from '@/components/layout/dashboard-shell'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 type EntityTypeFilter = 'all' | 'client' | 'vendor'
 type RiskLevelFilter = 'all' | RiskLevel
 
 export default function RiskAssessmentPage() {
+  const router = useRouter()
+  const { user } = useAuth()
   const [riskScores, setRiskScores] = useState<RiskScoreData[]>([])
   const [filteredScores, setFilteredScores] = useState<RiskScoreData[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,21 +85,24 @@ export default function RiskAssessmentPage() {
   }
 
   const handleViewDetails = (score: RiskScoreData) => {
-    // In real app, navigate to detailed risk analysis page
-    alert(`View detailed risk analysis for ${score.entityName}\n\nIn production, this would navigate to /risk-analyst/analysis/${score.entityId}`)
+    // Navigate to detailed risk analysis page
+    router.push(`/risk-analyst/analysis/${score.entityId}`)
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
-      </div>
+      <DashboardShell title="Risk Assessment" userRole="compliance_officer" userName={user?.name || undefined}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        </div>
+      </DashboardShell>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <BackButton href="/compliance" label="Back to Compliance" />
+    <DashboardShell title="Risk Assessment" userRole="compliance_officer" userName={user?.name || undefined}>
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <BackButton href="/compliance" label="Back to Compliance" />
       
       {/* Header */}
       <div>
@@ -307,7 +315,8 @@ export default function RiskAssessmentPage() {
           </Card>
         )}
       </div>
-    </div>
+      </div>
+    </DashboardShell>
   )
 }
 

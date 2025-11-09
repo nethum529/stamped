@@ -38,6 +38,28 @@ export interface LeadActivity {
   performedBy: string
 }
 
+export type MeetingType = 'call' | 'video' | 'in_person'
+
+export interface Meeting {
+  id: string
+  leadId?: string // Optional: meeting can be with a lead, client, or vendor
+  clientId?: string
+  vendorId?: string
+  entityType: 'lead' | 'client' | 'vendor' // Type of entity the meeting is with
+  entityName?: string // Name of the entity (for display purposes)
+  title: string
+  type: MeetingType
+  date: string
+  time: string
+  duration: number // in minutes
+  attendees: string[] // email addresses
+  notes: string
+  createdBy: string
+  createdByName: string
+  createdAt: string
+  status: 'scheduled' | 'completed' | 'cancelled'
+}
+
 export interface Lead {
   id: string
   companyName: string

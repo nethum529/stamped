@@ -8,32 +8,46 @@ import { FileText, Upload, MessageSquare, CheckCircle, Clock, AlertCircle } from
 import Link from 'next/link'
 
 export default function VendorDashboardPage() {
-  // Mock vendor data
+  // Microsoft vendor data
   const vendorData = {
-    companyName: 'TechSupply Solutions',
-    status: 'In Review',
-    completionPercentage: 65,
+    companyName: 'Microsoft Corporation',
+    status: 'Approved',
+    completionPercentage: 100,
     assignedOfficer: {
-      name: 'Rachel Chen',
-      email: 'rachel.chen@stamped.com',
+      name: 'Sarah Johnson',
+      email: 'sarah.johnson@stamped.com',
       phone: '+1 (555) 0145',
     },
     requiredDocuments: [
-      { name: 'Business License', status: 'approved', uploadedAt: '2024-01-15' },
-      { name: 'Tax Certificate', status: 'pending_review', uploadedAt: '2024-01-18' },
-      { name: 'Insurance Documents', status: 'pending_upload', uploadedAt: null },
-      { name: 'W-9 Form', status: 'approved', uploadedAt: '2024-01-16' },
-      { name: 'Bank Account Details', status: 'pending_review', uploadedAt: '2024-01-19' },
+      { name: 'Business License', status: 'approved', uploadedAt: '2023-06-10' },
+      { name: 'Tax Certificate', status: 'approved', uploadedAt: '2023-06-12' },
+      { name: 'Insurance Documents', status: 'approved', uploadedAt: '2023-06-14' },
+      { name: 'W-9 Form', status: 'approved', uploadedAt: '2023-06-11' },
+      { name: 'Bank Account Details', status: 'approved', uploadedAt: '2023-06-13' },
+      { name: 'SOC 2 Type II Certification', status: 'approved', uploadedAt: '2023-06-15' },
+      { name: 'ISO 27001 Certification', status: 'approved', uploadedAt: '2023-06-15' },
     ],
     recentActivity: [
-      { action: 'Document approved', document: 'W-9 Form', timestamp: '2 hours ago' },
-      { action: 'Document uploaded', document: 'Bank Account Details', timestamp: '1 day ago' },
-      { action: 'Document approved', document: 'Business License', timestamp: '3 days ago' },
+      { action: 'Contract renewal discussion', document: 'Azure Services Agreement', timestamp: '2 days ago' },
+      { action: 'Quarterly compliance review', document: 'Compliance Documentation', timestamp: '1 week ago' },
+      { action: 'Service expansion approved', document: 'OpenAI Infrastructure Services', timestamp: '2 weeks ago' },
     ],
     nextSteps: [
-      'Upload Insurance Documents',
-      'Await review of Tax Certificate',
-      'Await review of Bank Account Details',
+      'Continue providing Azure cloud services to OpenAI and other clients',
+      'Maintain compliance certifications (SOC 2, ISO 27001)',
+      'Quarterly vendor review scheduled for April 2025',
+    ],
+    services: [
+      'Azure Cloud Services for OpenAI infrastructure',
+      'Office 365 Enterprise for Goldman Sachs employees',
+      'Microsoft 365 productivity suite',
+      'Azure AI Services',
+      'Security and Compliance Tools',
+    ],
+    clients: [
+      'OpenAI - Azure cloud infrastructure provider',
+      'Anthropic - Cloud services',
+      'Various Goldman Sachs clients - Enterprise software licenses',
     ],
   }
 
@@ -75,7 +89,7 @@ export default function VendorDashboardPage() {
           Welcome, {vendorData.companyName}
         </h1>
         <p className="text-lg text-neutral-600">
-          Track your vendor onboarding progress and manage documentation
+          Providing cloud infrastructure and enterprise software services to Goldman Sachs and clients
         </p>
       </motion.div>
 
@@ -111,12 +125,12 @@ export default function VendorDashboardPage() {
               <div className="flex items-center gap-2">
                 <Badge className={cn(
                   'px-3 py-1',
-                  vendorData.status === 'In Review' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : ''
+                  vendorData.status === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' : ''
                 )}>
                   {vendorData.status}
                 </Badge>
                 <span className="text-sm text-neutral-600">
-                  Our team is reviewing your submitted documents
+                  Active vendor providing services to Goldman Sachs clients
                 </span>
               </div>
             </div>
@@ -167,10 +181,18 @@ export default function VendorDashboardPage() {
                   </motion.div>
                 ))}
               </div>
+              <div className="mt-4 p-3 bg-primary-50 rounded-lg border border-primary-200">
+                <p className="text-sm text-primary-800 font-medium mb-1">Active Services</p>
+                <ul className="text-xs text-primary-700 space-y-1">
+                  {vendorData.services?.slice(0, 3).map((service, idx) => (
+                    <li key={idx}>• {service}</li>
+                  ))}
+                </ul>
+              </div>
               <Link href="/vendor-portal/documents">
                 <Button className="w-full mt-4" variant="outline">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Documents
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Documents
                 </Button>
               </Link>
             </CardContent>

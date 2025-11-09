@@ -7,19 +7,27 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import { User, Bell, Shield, Upload, X, Camera, Mail, CheckCircle2 } from 'lucide-react'
+import { User, Bell, Shield, Upload, X, Camera, Mail, CheckCircle2, Loader2 } from 'lucide-react'
 import { authService } from '@/lib/auth/service'
 import { createClient } from '@/lib/supabase/client'
 import { requestEmailVerification, verifyCode } from '@/lib/auth/verification'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
+import { getUserFriendlyErrorMessage } from '@/lib/utils/error-handling'
+
+const NOTIFICATION_PREFS_KEY = 'stamped_notification_preferences'
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { user: authUser, loading: authLoading, refreshUser } = useAuth()
+  const { showSuccess, showError } = useToast()
+  
+  // Initialize Supabase client (DashboardShell handles auth, so this should work)
   const supabase = createClient()
-  const { user: authUser, refreshUser } = useAuth()
   
   const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [savingNotifications, setSavingNotifications] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [user, setUser] = useState<any>(null)
@@ -34,16 +42,94 @@ export default function SettingsPage() {
   })
   const [verificationStep, setVerificationStep] = useState<'initial' | 'code' | 'success'>('initial')
   const [verificationCode, setVerificationCode] = useState('')
-  const [notifications, setNotifications] = useState({
+  
+  const defaultNotifications = {
     highRiskAlerts: true,
     documentUploads: true,
     approvalRequests: true,
     weeklyReports: false,
-  })
+  }
+
+  // Load notification preferences from localStorage
+  const loadNotificationPreferences = (): typeof defaultNotifications => {
+    if (typeof window === 'undefined') {
+      return defaultNotifications
+    }
+    
+    try {
+      const stored = localStorage.getItem(NOTIFICATION_PREFS_KEY)
+      if (stored) {
+        return JSON.parse(stored)
+      }
+    } catch (err) {
+      console.error('Failed to load notification preferences:', err)
+    }
+    
+    return defaultNotifications
+  }
+  
+  const [notifications, setNotifications] = useState(() => loadNotificationPreferences())
 
   useEffect(() => {
-    loadUserData()
-  }, [])
+    // Only load user data if authUser is not available
+    // If authUser exists, we can use it directly
+    if (!authUser && !authLoading) {
+      loadUserData()
+    } else if (authUser) {
+      // If authUser exists, sync it to local user state
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        user_metadata: {
+          full_name: authUser.name,
+          display_name: authUser.name,
+          avatar_url: authUser.avatarUrl,
+        },
+      })
+      setProfileData({
+        name: authUser.name || '',
+        email: authUser.email || '',
+        avatarUrl: authUser.avatarUrl || '',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, authLoading])
+
+  // Save notification preferences to localStorage
+  const saveNotificationPreferences = async (prefs: typeof defaultNotifications) => {
+    setSavingNotifications(true)
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs))
+      }
+      // Also save to user metadata if possible
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            notification_preferences: prefs,
+          },
+        })
+      } catch (err) {
+        // If metadata update fails, that's ok - localStorage is the primary storage
+        console.warn('Failed to save notification preferences to user metadata:', err)
+      }
+      showSuccess('Notification preferences saved')
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+    } finally {
+      setSavingNotifications(false)
+    }
+  }
+
+  const handleNotificationChange = (key: keyof typeof defaultNotifications, value: boolean) => {
+    const updated = {
+      ...notifications,
+      [key]: value,
+    }
+    setNotifications(updated)
+    // Auto-save when changed
+    saveNotificationPreferences(updated)
+  }
 
   const loadUserData = async () => {
     try {
@@ -94,6 +180,14 @@ export default function SettingsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Check if user is loaded
+    if (!user && !authUser) {
+      const errorMsg = 'Please wait for user data to load'
+      setError(errorMsg)
+      showError(errorMsg)
+      return
+    }
+
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError('Image size must be less than 5MB')
@@ -110,9 +204,15 @@ export default function SettingsPage() {
     setError('')
 
     try {
+      // Get user ID from either user or authUser
+      const userId = user?.id || authUser?.id
+      if (!userId) {
+        throw new Error('User ID not available')
+      }
+
       // Create a unique filename
       const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      const fileName = `${userId}-${Date.now()}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
       // Upload to Supabase Storage
@@ -137,11 +237,15 @@ export default function SettingsPage() {
       if (updateError) throw updateError
 
       setProfileData(prev => ({ ...prev, avatarUrl: urlData.publicUrl }))
-      setSuccess('Profile picture updated!')
+      const successMsg = 'Profile picture updated!'
+      setSuccess(successMsg)
+      showSuccess(successMsg)
       refreshUser() // Refresh to show avatar everywhere
     } catch (err: any) {
       console.error('Upload error:', err)
-      setError(err.message || 'Failed to upload image')
+      const errorMsg = getUserFriendlyErrorMessage(err)
+      setError(errorMsg)
+      showError(errorMsg)
     } finally {
       setUploadingImage(false)
     }
@@ -161,10 +265,14 @@ export default function SettingsPage() {
       if (updateError) throw updateError
 
       setProfileData(prev => ({ ...prev, avatarUrl: '' }))
-      setSuccess('Profile picture removed')
+      const successMsg = 'Profile picture removed'
+      setSuccess(successMsg)
+      showSuccess(successMsg)
       refreshUser() // Refresh to update everywhere
     } catch (err: any) {
-      setError(err.message || 'Failed to remove image')
+      const errorMsg = getUserFriendlyErrorMessage(err)
+      setError(errorMsg)
+      showError(errorMsg)
     } finally {
       setUploadingImage(false)
     }
@@ -228,7 +336,9 @@ export default function SettingsPage() {
       }
 
       setVerificationStep('success')
-      setSuccess('Password updated successfully!')
+      const successMsg = 'Password updated successfully!'
+      setSuccess(successMsg)
+      showSuccess(successMsg)
       setPasswordData({ newPassword: '', confirmPassword: '' })
       setVerificationCode('')
       
@@ -237,7 +347,9 @@ export default function SettingsPage() {
         setVerificationStep('initial')
       }, 3000)
     } catch (err: any) {
-      setError(err.message || 'Failed to update password')
+      const errorMsg = getUserFriendlyErrorMessage(err)
+      setError(errorMsg)
+      showError(errorMsg)
     } finally {
       setLoading(false)
     }
@@ -255,8 +367,34 @@ export default function SettingsPage() {
     router.push('/login')
   }
 
+  // Determine user role for DashboardShell
+  const getUserRole = (): 'compliance_officer' | 'relationship_manager' | 'risk_analyst' | 'executive' | undefined => {
+    if (authUser?.role) {
+      return authUser.role as 'compliance_officer' | 'relationship_manager' | 'risk_analyst' | 'executive'
+    }
+    // Default to compliance_officer if role is not available
+    return 'compliance_officer'
+  }
+
+  // Show loading state while user data is being loaded
+  if (authLoading || (!authUser && !user)) {
+    return (
+      <DashboardShell title="Settings" userRole={getUserRole()} userName={undefined}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        </div>
+      </DashboardShell>
+    )
+  }
+
+  // Redirect to login if no user is found after loading
+  if (!authUser && !user) {
+    router.push('/login')
+    return null
+  }
+
   return (
-    <DashboardShell title="Settings" userRole="compliance" userName={profileData.name || 'User'}>
+    <DashboardShell title="Settings" userRole={getUserRole()} userName={authUser?.name || profileData.name || undefined}>
       <div className="mx-auto max-w-4xl space-y-6">
         {success && (
           <Alert variant="success" className="mb-6">
@@ -391,11 +529,9 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={notifications[item.key as keyof typeof notifications]}
                   onChange={(e) =>
-                    setNotifications({
-                      ...notifications,
-                      [item.key]: e.target.checked,
-                    })
+                    handleNotificationChange(item.key as keyof typeof defaultNotifications, e.target.checked)
                   }
+                  disabled={savingNotifications}
                   className="h-5 w-5 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-500"
                 />
               </div>

@@ -65,6 +65,11 @@ export function DocumentUploadCard({
 
   const handleUpload = async () => {
     if (!selectedFile) return
+    
+    if (!onUpload || typeof onUpload !== 'function') {
+      setError('Upload handler is not available. Please try again.')
+      return
+    }
 
     setUploading(true)
     setError(null)

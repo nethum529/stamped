@@ -31,17 +31,17 @@ export default function DocumentReviewCard({
 
   const getStatusColor = (status: DocumentStatus) => {
     switch (status) {
-      case 'APPROVED':
+      case 'approved':
         return 'bg-green-100 text-green-800 border-green-300'
-      case 'REJECTED':
+      case 'rejected':
         return 'bg-red-100 text-red-800 border-red-300'
-      case 'REVIEWING':
+      case 'under_review':
         return 'bg-blue-100 text-blue-800 border-blue-300'
-      case 'UPLOADED':
+      case 'uploaded':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-      case 'PENDING':
+      case 'pending_upload':
         return 'bg-orange-100 text-orange-800 border-orange-300'
-      case 'MISSING':
+      case 'expired':
         return 'bg-gray-100 text-gray-800 border-gray-300'
       default:
         return 'bg-neutral-100 text-neutral-800 border-neutral-300'
@@ -50,16 +50,16 @@ export default function DocumentReviewCard({
 
   const getStatusIcon = (status: DocumentStatus) => {
     switch (status) {
-      case 'APPROVED':
+      case 'approved':
         return <CheckCircle className="h-4 w-4" />
-      case 'REJECTED':
+      case 'rejected':
         return <XCircle className="h-4 w-4" />
-      case 'REVIEWING':
+      case 'under_review':
         return <Eye className="h-4 w-4" />
-      case 'UPLOADED':
-      case 'PENDING':
+      case 'uploaded':
+      case 'pending_upload':
         return <Clock className="h-4 w-4" />
-      case 'MISSING':
+      case 'expired':
         return <AlertCircle className="h-4 w-4" />
       default:
         return <FileText className="h-4 w-4" />
@@ -116,8 +116,8 @@ export default function DocumentReviewCard({
     }
   }
 
-  const canReview = document.status === 'UPLOADED' || document.status === 'REVIEWING' || document.status === 'PENDING'
-  const isReviewed = document.status === 'APPROVED' || document.status === 'REJECTED'
+  const canReview = document.status === 'uploaded' || document.status === 'under_review' || document.status === 'pending_upload'
+  const isReviewed = document.status === 'approved' || document.status === 'rejected'
 
   return (
     <Card className={cn(
@@ -134,7 +134,7 @@ export default function DocumentReviewCard({
               <div>
                 <CardTitle className="text-base font-sans">{document.fileName}</CardTitle>
                 <p className="text-xs text-neutral-600 mt-1">
-                  {document.documentType.replace(/_/g, ' ')} • {formatFileSize(document.fileSize)}
+                  {document.type.replace(/_/g, ' ')} • {formatFileSize(document.fileSize)}
                 </p>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function DocumentReviewCard({
           <div>
             <p className="text-neutral-500">Upload Date</p>
             <p className="font-medium text-neutral-900">
-              {new Date(document.uploadDate).toLocaleDateString('en-US', {
+              {new Date(document.uploadedAt).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric',

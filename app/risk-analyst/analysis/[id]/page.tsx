@@ -1,11 +1,15 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Modal } from '@/components/ui/modal'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { mockRiskScores } from '@/lib/mock-data/risk-scores'
+import { mockDataService } from '@/lib/services/mock-data-service'
 import { useParams, useRouter } from 'next/navigation'
 import {
   Shield,
@@ -18,30 +22,64 @@ import {
   Users,
   TrendingUp,
   ArrowLeft,
+  Calendar,
+  Loader2,
+  Scale,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { BackButton } from '@/components/layout/back-button'
+import { DashboardShell } from '@/components/layout/dashboard-shell'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
+import { getUserFriendlyErrorMessage } from '@/lib/utils/error-handling'
 
 export default function RiskAnalysisDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
+  const { showSuccess, showError } = useToast()
   const entityId = params.id as string
+
+  // State for modals and loading
+  const [generatingReport, setGeneratingReport] = useState(false)
+  const [updatingAssessment, setUpdatingAssessment] = useState(false)
+  const [schedulingReview, setSchedulingReview] = useState(false)
+  const [escalating, setEscalating] = useState(false)
+  
+  // Modal states
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [showEscalateModal, setShowEscalateModal] = useState(false)
+  
+  // Form states
+  const [updateForm, setUpdateForm] = useState({
+    riskLevel: '',
+    notes: '',
+  })
+  const [scheduleForm, setScheduleForm] = useState({
+    date: '',
+    notes: '',
+  })
+  const [escalateNotes, setEscalateNotes] = useState('')
 
   // Find the risk score data
   const riskData = mockRiskScores.find((s) => s.entityId === entityId)
 
   if (!riskData) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Shield className="h-16 w-16 text-neutral-300 mb-4" />
-        <h2 className="text-2xl font-bold text-neutral-900 mb-2">Entity Not Found</h2>
-        <p className="text-neutral-600 mb-4">The requested risk analysis could not be found.</p>
-        <Button onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Go Back
-        </Button>
-      </div>
+      <DashboardShell title="Risk Analysis" userRole="risk_analyst" userName={user?.name || undefined}>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Shield className="h-16 w-16 text-neutral-300 mb-4" />
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Entity Not Found</h2>
+          <p className="text-neutral-600 mb-4">The requested risk analysis could not be found.</p>
+          <Button onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go Back
+          </Button>
+        </div>
+      </DashboardShell>
     )
   }
 
@@ -57,6 +95,13 @@ export default function RiskAnalysisDetailPage() {
     if (score <= 50) return 'bg-yellow-500'
     if (score <= 75) return 'bg-orange-500'
     return 'bg-red-500'
+  }
+
+  const getProgressVariant = (score: number): 'default' | 'success' | 'warning' | 'error' => {
+    if (score <= 25) return 'success'
+    if (score <= 50) return 'warning'
+    if (score <= 75) return 'warning'
+    return 'error'
   }
 
   // Mock adverse media findings
@@ -98,10 +143,92 @@ export default function RiskAnalysisDetailPage() {
     { label: 'Sanctions Screening', value: riskData.breakdown.sanctions, description: 'Sanctions list matches' },
   ]
 
+  // Handlers
+  const handleGenerateReport = async () => {
+    setGeneratingReport(true)
+    try {
+      const report = await mockDataService.generateRiskReport(entityId)
+      showSuccess(`Risk report generated successfully. Report ID: ${report.reportId}`)
+      
+      // In a real app, this would download the report
+      // For now, we'll simulate a download
+      setTimeout(() => {
+        showSuccess('Report download started')
+      }, 500)
+    } catch (error) {
+      showError(getUserFriendlyErrorMessage(error))
+    } finally {
+      setGeneratingReport(false)
+    }
+  }
+
+  const handleUpdateAssessment = async () => {
+    if (!updateForm.riskLevel) {
+      showError('Please select a risk level')
+      return
+    }
+
+    setUpdatingAssessment(true)
+    try {
+      await mockDataService.updateRiskAssessment(entityId, {
+        riskLevel: updateForm.riskLevel as 'Low' | 'Medium' | 'High' | 'Critical',
+      })
+      showSuccess('Risk assessment updated successfully')
+      setShowUpdateModal(false)
+      setUpdateForm({ riskLevel: '', notes: '' })
+      // Refresh page to show updated data
+      window.location.reload()
+    } catch (error) {
+      showError(getUserFriendlyErrorMessage(error))
+    } finally {
+      setUpdatingAssessment(false)
+    }
+  }
+
+  const handleScheduleReview = async () => {
+    if (!scheduleForm.date) {
+      showError('Please select a review date')
+      return
+    }
+
+    setSchedulingReview(true)
+    try {
+      await mockDataService.scheduleReview(entityId, scheduleForm.date, scheduleForm.notes)
+      showSuccess(`Review scheduled for ${new Date(scheduleForm.date).toLocaleDateString()}`)
+      setShowScheduleModal(false)
+      setScheduleForm({ date: '', notes: '' })
+    } catch (error) {
+      showError(getUserFriendlyErrorMessage(error))
+    } finally {
+      setSchedulingReview(false)
+    }
+  }
+
+  const handleEscalateToLegal = async () => {
+    setEscalating(true)
+    try {
+      // Simulate escalation to legal team
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      showSuccess('Case escalated to legal team. They will review and contact you shortly.')
+      setShowEscalateModal(false)
+      setEscalateNotes('')
+    } catch (error) {
+      showError(getUserFriendlyErrorMessage(error))
+    } finally {
+      setEscalating(false)
+    }
+  }
+
+  const handleViewDetails = () => {
+    // Navigate to adverse media page or open details modal
+    router.push(`/adverse-media?entityId=${entityId}`)
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Back Button */}
-      <BackButton href="/compliance/risk-assessment" label="Back to Risk Assessment" />
+    <DashboardShell title="Risk Analysis" userRole="risk_analyst" userName={user?.name || undefined}>
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Back Button */}
+        <BackButton href="/compliance/risk-assessment" label="Back to Risk Assessment" />
 
       {/* Entity Header */}
       <div className="flex items-start justify-between">
@@ -150,8 +277,32 @@ export default function RiskAnalysisDetailPage() {
                   <h3 className="font-semibold text-red-900 mb-1">CRITICAL: Sanctions Match Found</h3>
                   <p className="text-sm text-red-800 mb-3">{sanctionsResults.details}</p>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="destructive">Escalate to Legal</Button>
-                    <Button size="sm" variant="outline">View Details</Button>
+                    <Button 
+                      size="sm"
+                      variant="danger"
+                      onClick={() => setShowEscalateModal(true)}
+                      disabled={escalating}
+                    >
+                      {escalating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Escalating...
+                        </>
+                      ) : (
+                        <>
+                          <Scale className="mr-2 h-4 w-4" />
+                          Escalate to Legal
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={handleViewDetails}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -188,7 +339,7 @@ export default function RiskAnalysisDetailPage() {
                 <Progress
                   value={item.value}
                   className="h-2"
-                  indicatorClassName={getProgressColor(item.value)}
+                  variant={getProgressVariant(item.value)}
                 />
               </motion.div>
             ))}
@@ -323,19 +474,213 @@ export default function RiskAnalysisDetailPage() {
       </Card>
 
       {/* Action Buttons */}
-      <div className="flex gap-4">
-        <Button className="flex-1">
-          <FileText className="mr-2 h-4 w-4" />
-          Generate Report
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Button 
+          className="flex-1" 
+          onClick={handleGenerateReport}
+          disabled={generatingReport}
+        >
+          {generatingReport ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <FileText className="mr-2 h-4 w-4" />
+              Generate Report
+            </>
+          )}
         </Button>
-        <Button variant="outline" className="flex-1">
-          Update Risk Assessment
+        <Button 
+          variant="outline" 
+          className="flex-1"
+          onClick={() => {
+            setUpdateForm({ riskLevel: riskData.riskLevel, notes: '' })
+            setShowUpdateModal(true)
+          }}
+          disabled={updatingAssessment}
+        >
+          {updatingAssessment ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Updating...
+            </>
+          ) : (
+            <>
+              <Shield className="mr-2 h-4 w-4" />
+              Update Risk Assessment
+            </>
+          )}
         </Button>
-        <Button variant="outline" className="flex-1">
-          Schedule Review
+        <Button 
+          variant="outline" 
+          className="flex-1"
+          onClick={() => setShowScheduleModal(true)}
+          disabled={schedulingReview}
+        >
+          {schedulingReview ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Scheduling...
+            </>
+          ) : (
+            <>
+              <Calendar className="mr-2 h-4 w-4" />
+              Schedule Review
+            </>
+          )}
         </Button>
       </div>
-    </div>
+
+      {/* Update Risk Assessment Modal */}
+      <Modal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        title="Update Risk Assessment"
+        description="Update the risk level and add notes for this entity"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-900 mb-2 block">
+              Risk Level <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={updateForm.riskLevel}
+              onChange={(e) => setUpdateForm({ ...updateForm, riskLevel: e.target.value })}
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Select risk level...</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-900 mb-2 block">
+              Notes (Optional)
+            </label>
+            <Textarea
+              value={updateForm.notes}
+              onChange={(e) => setUpdateForm({ ...updateForm, notes: e.target.value })}
+              placeholder="Add notes about this risk assessment update..."
+              rows={4}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowUpdateModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateAssessment} disabled={updatingAssessment}>
+              {updatingAssessment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Assessment'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Schedule Review Modal */}
+      <Modal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        title="Schedule Risk Review"
+        description="Schedule a future review for this entity"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-900 mb-2 block">
+              Review Date <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="date"
+              value={scheduleForm.date}
+              onChange={(e) => setScheduleForm({ ...scheduleForm, date: e.target.value })}
+              min={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-900 mb-2 block">
+              Notes (Optional)
+            </label>
+            <Textarea
+              value={scheduleForm.notes}
+              onChange={(e) => setScheduleForm({ ...scheduleForm, notes: e.target.value })}
+              placeholder="Add notes about this scheduled review..."
+              rows={4}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowScheduleModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleScheduleReview} disabled={schedulingReview}>
+              {schedulingReview ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                'Schedule Review'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Escalate to Legal Modal */}
+      <Modal
+        isOpen={showEscalateModal}
+        onClose={() => setShowEscalateModal(false)}
+        title="Escalate to Legal Team"
+        description="This will escalate this case to the legal team for immediate review"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+            <p className="text-sm text-red-900">
+              <strong>Warning:</strong> This action will immediately notify the legal team about this sanctions match. 
+              Please provide any additional context or urgency details below.
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-900 mb-2 block">
+              Additional Notes (Optional)
+            </label>
+            <Textarea
+              value={escalateNotes}
+              onChange={(e) => setEscalateNotes(e.target.value)}
+              placeholder="Add any additional context or urgency details..."
+              rows={4}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowEscalateModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleEscalateToLegal} disabled={escalating}>
+              {escalating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Escalating...
+                </>
+              ) : (
+                <>
+                  <Scale className="mr-2 h-4 w-4" />
+                  Escalate to Legal
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      </div>
+    </DashboardShell>
   )
 }
 

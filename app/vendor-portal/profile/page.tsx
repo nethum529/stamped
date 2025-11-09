@@ -14,22 +14,22 @@ export default function VendorProfilePage() {
 
   const [profileData, setProfileData] = useState({
     // Company Info (Read-only)
-    companyName: 'TechSupply Solutions',
-    businessRegistrationNumber: 'BR-2024-12345',
-    taxId: '98-7654321',
+    companyName: 'Microsoft Corporation',
+    businessRegistrationNumber: 'WA-600413640',
+    taxId: '91-1144442',
     industry: 'Technology',
-    yearEstablished: '2015',
+    yearEstablished: '1975',
     
     // Contact Info (Editable)
-    contactName: 'David Wilson',
-    email: 'david.wilson@techsupply.com',
-    phone: '+1 (555) 0199',
-    address: '789 Innovation Blvd',
-    city: 'Austin',
-    state: 'TX',
-    zipCode: '78701',
+    contactName: 'Jennifer Martinez',
+    email: 'jennifer.martinez@microsoft.com',
+    phone: '+1-425-882-8123',
+    address: 'One Microsoft Way',
+    city: 'Redmond',
+    state: 'WA',
+    zipCode: '98052',
     country: 'United States',
-    website: 'www.techsupply.com',
+    website: 'www.microsoft.com',
   })
 
   const handleSave = async () => {
@@ -51,7 +51,7 @@ export default function VendorProfilePage() {
           Company Profile
         </h1>
         <p className="text-lg text-neutral-600">
-          View your company information and update contact details
+          Providing cloud infrastructure services to Goldman Sachs clients including OpenAI
         </p>
       </motion.div>
 

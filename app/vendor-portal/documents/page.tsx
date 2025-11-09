@@ -1,7 +1,6 @@
 'use client'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { DocumentUploadCard } from '@/components/client-portal/document-upload-card'
 import { FileText, Download, Eye, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
@@ -81,14 +80,6 @@ export default function VendorDocumentsPage() {
         <p className="text-lg text-neutral-600">
           Upload and manage your vendor documentation
         </p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        <DocumentUploadCard />
       </motion.div>
 
       <motion.div

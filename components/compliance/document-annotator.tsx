@@ -100,7 +100,7 @@ export default function DocumentAnnotator({ document, onClose }: DocumentAnnotat
           <div className="flex-1">
             <h3 className="font-sans text-lg font-semibold text-neutral-900">{document.fileName}</h3>
             <p className="text-sm text-neutral-600">
-              {document.documentType.replace(/_/g, ' ')} • {formatFileSize(document.fileSize)}
+              {document.type.replace(/_/g, ' ')} • {formatFileSize(document.fileSize)}
             </p>
           </div>
           <Button onClick={onClose} variant="ghost" size="sm">
@@ -151,7 +151,7 @@ export default function DocumentAnnotator({ document, onClose }: DocumentAnnotat
             <div className="flex items-center gap-2">
               <Button
                 onClick={() => handleAddAnnotation('highlight')}
-                variant={activeTool === 'highlight' ? 'default' : 'outline'}
+                variant={activeTool === 'highlight' ? 'primary' : 'outline'}
                 size="sm"
               >
                 <Highlighter className="mr-2 h-4 w-4" />
@@ -159,7 +159,7 @@ export default function DocumentAnnotator({ document, onClose }: DocumentAnnotat
               </Button>
               <Button
                 onClick={() => handleAddAnnotation('comment')}
-                variant={activeTool === 'comment' ? 'default' : 'outline'}
+                variant={activeTool === 'comment' ? 'primary' : 'outline'}
                 size="sm"
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
@@ -168,7 +168,7 @@ export default function DocumentAnnotator({ document, onClose }: DocumentAnnotat
             </div>
           </div>
 
-          <a href={document.downloadUrl} download target="_blank" rel="noopener noreferrer">
+          <a href={document.url || `#${document.id}`} download target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
               <Download className="mr-2 h-4 w-4" />
               Download
@@ -191,7 +191,7 @@ export default function DocumentAnnotator({ document, onClose }: DocumentAnnotat
               {/* Mock Document Content */}
               <div className="p-12 text-neutral-800">
                 <h1 className="text-2xl font-bold mb-4">
-                  {document.documentType.replace(/_/g, ' ')}
+                  {document.type.replace(/_/g, ' ')}
                 </h1>
                 <p className="mb-4">
                   This is a mock document viewer. In production, this would display the actual PDF or
@@ -205,7 +205,7 @@ export default function DocumentAnnotator({ document, onClose }: DocumentAnnotat
                 </p>
                 <p className="mb-4">
                   <strong>Upload Date:</strong>{' '}
-                  {new Date(document.uploadDate).toLocaleDateString()}
+                  {new Date(document.uploadedAt).toLocaleDateString()}
                 </p>
                 <div className="mt-8 border-t border-neutral-300 pt-4">
                   <p className="text-sm text-neutral-600">

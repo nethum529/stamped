@@ -7,16 +7,22 @@ import DocumentReviewCard from '@/components/compliance/document-review-card'
 import DocumentAnnotator from '@/components/compliance/document-annotator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertTriangle, Search, Filter } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { BackButton } from '@/components/layout/back-button'
+import { useToast } from '@/components/ui/toast'
+import { getUserFriendlyErrorMessage } from '@/lib/utils/error-handling'
+import { DashboardShell } from '@/components/layout/dashboard-shell'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 type DocumentFilterStatus = DocumentStatus | 'ALL'
 
 export default function ComplianceDocumentsPage() {
+  const { user } = useAuth()
+  const { showSuccess, showError } = useToast()
   const [documents, setDocuments] = useState<Document[]>([])
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,29 +83,59 @@ export default function ComplianceDocumentsPage() {
   }, [documents, filterStatus, searchQuery])
 
   const handleApprove = async (documentId: string, notes?: string) => {
-    await mockDataService.updateDocumentStatus(documentId, 'approved', notes)
-    
-    // Update local state
-    setDocuments((prev) =>
-      prev.map((doc) =>
-        doc.id === documentId
-          ? { ...doc, status: 'approved', reviewNotes: notes, reviewDate: new Date().toISOString() }
-          : doc
+    try {
+      const doc = documents.find(d => d.id === documentId)
+      const updatedDoc = await mockDataService.updateDocumentStatus(
+        documentId, 
+        'approved', 
+        user?.id,
+        user?.name,
+        notes ? [notes] : undefined
       )
-    )
+      
+      if (updatedDoc) {
+        // Update local state
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === documentId ? updatedDoc : doc
+          )
+        )
+        showSuccess(`Document "${doc?.fileName || documentId}" approved successfully`)
+      } else {
+        throw new Error('Failed to update document status')
+      }
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+      throw err // Re-throw to let the card handle it
+    }
   }
 
   const handleReject = async (documentId: string, reason: string) => {
-    await mockDataService.updateDocumentStatus(documentId, 'rejected', reason)
-    
-    // Update local state
-    setDocuments((prev) =>
-      prev.map((doc) =>
-        doc.id === documentId
-          ? { ...doc, status: 'rejected', reviewNotes: reason, reviewDate: new Date().toISOString() }
-          : doc
+    try {
+      const doc = documents.find(d => d.id === documentId)
+      const updatedDoc = await mockDataService.updateDocumentStatus(
+        documentId, 
+        'rejected', 
+        user?.id,
+        user?.name,
+        [reason]
       )
-    )
+      
+      if (updatedDoc) {
+        // Update local state
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === documentId ? updatedDoc : doc
+          )
+        )
+        showSuccess(`Document "${doc?.fileName || documentId}" rejected`)
+      } else {
+        throw new Error('Failed to update document status')
+      }
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+      throw err // Re-throw to let the card handle it
+    }
   }
 
   const handleView = (document: Document) => {
@@ -116,14 +152,16 @@ export default function ComplianceDocumentsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
-      </div>
+      <DashboardShell title="Document Reviews" userRole="compliance_officer" userName={user?.name || undefined}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        </div>
+      </DashboardShell>
     )
   }
 
   return (
-    <>
+    <DashboardShell title="Document Reviews" userRole="compliance_officer" userName={user?.name || undefined}>
       {/* Document Annotator Modal */}
       {viewingDocument && (
         <DocumentAnnotator
@@ -132,7 +170,7 @@ export default function ComplianceDocumentsPage() {
         />
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
         <BackButton href="/compliance" label="Back to Compliance" />
         
         {/* Header */}
@@ -257,6 +295,7 @@ export default function ComplianceDocumentsPage() {
                 { value: 'approved', label: 'Approved' },
                 { value: 'rejected', label: 'Rejected' },
               ]}
+              label="Status"
             />
           </div>
         </CardContent>
@@ -308,8 +347,8 @@ export default function ComplianceDocumentsPage() {
           </Card>
         )}
       </div>
-    </div>
-    </>
+      </div>
+    </DashboardShell>
   )
 }
 

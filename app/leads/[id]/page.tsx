@@ -1,94 +1,209 @@
 'use client'
 
-import React, { use, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { mockLeads } from '@/lib/mock-data/leads'
+import React, { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { mockDataService } from '@/lib/services/mock-data-service'
 import { Lead } from '@/lib/types/lead'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Modal } from '@/components/ui/modal'
+import { Textarea } from '@/components/ui/textarea'
 import AIScoreBadge from '@/components/leads/ai-score-badge'
-import { ArrowLeft, Mail, Phone, Globe, Linkedin, Building2, MapPin, DollarSign, Calendar, Edit, Trash2, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Globe, Linkedin, Building2, MapPin, DollarSign, Calendar, Edit, Trash2, CheckCircle, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
 import { getStageDisplayName } from '@/lib/types/lead'
 import { aiLeadScoringService } from '@/lib/services/ai-lead-scoring'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/components/ui/toast'
+import { getUserFriendlyErrorMessage } from '@/lib/utils/error-handling'
+import { DashboardShell } from '@/components/layout/dashboard-shell'
+import { useAuth } from '@/lib/hooks/useAuth'
 
-interface LeadDetailsPageProps {
-  params: Promise<{ id: string }>
-}
-
-export default function LeadDetailsPage({ params }: LeadDetailsPageProps) {
-  const resolvedParams = use(params)
+export default function LeadDetailsPage() {
+  const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
+  const { showSuccess, showError } = useToast()
   const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [converting, setConverting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const foundLead = mockLeads.find((l) => l.id === resolvedParams.id)
-      setLead(foundLead || null)
-      setLoading(false)
-    }, 500)
-  }, [resolvedParams.id])
+    async function fetchLead() {
+      try {
+        setLoading(true)
+        setError(null)
+        const leadId = params.id as string
+        if (!leadId) {
+          setError('Lead ID is required')
+          return
+        }
+        const foundLead = await mockDataService.getLeadById(leadId)
+        setLead(foundLead)
+      } catch (err) {
+        console.error('Failed to fetch lead:', err)
+        setError('Failed to load lead details. Please try again.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (params.id) {
+      fetchLead()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id])
 
   const handleConvertToClient = async () => {
     if (!lead) return
-    // Simulate conversion
-    alert('Converting lead to client... (This is a mock action)')
-    // In a real app, you'd call an API to convert the lead
-    // router.push(`/clients/${newClientId}`)
+
+    setConverting(true)
+    try {
+      const newClient = await mockDataService.convertLeadToClient(lead.id)
+      if (newClient) {
+        showSuccess(`Lead converted to client successfully! Client ID: ${newClient.id}`)
+        // Navigate to the new client page
+        setTimeout(() => {
+          router.push(`/clients/${newClient.id}`)
+        }, 1500)
+      } else {
+        throw new Error('Failed to convert lead to client')
+      }
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+    } finally {
+      setConverting(false)
+    }
+  }
+
+  const handleDeleteLead = async () => {
+    if (!lead) return
+    if (deleteConfirm !== lead.companyName) {
+      showError(`Please type "${lead.companyName}" to confirm deletion`)
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const success = await mockDataService.deleteLead(lead.id)
+      if (success) {
+        showSuccess('Lead deleted successfully')
+        setShowDeleteModal(false)
+        setDeleteConfirm('')
+        // Navigate back to leads page
+        setTimeout(() => {
+          router.push('/leads')
+        }, 1000)
+      } else {
+        throw new Error('Failed to delete lead')
+      }
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleSendEmail = () => {
+    if (!lead) return
+    // Open email client with pre-filled email
+    const subject = encodeURIComponent(`Regarding ${lead.companyName}`)
+    const body = encodeURIComponent(`Hello ${lead.contactName},\n\n`)
+    window.location.href = `mailto:${lead.contactEmail}?subject=${subject}&body=${body}`
+    showSuccess('Opening email client...')
+  }
+
+  const handleScheduleCall = () => {
+    if (!lead) return
+    // Navigate to schedule meeting page with pre-filled lead
+    router.push(`/leads/schedule-meeting?leadId=${lead.id}`)
+  }
+
+  const handleBookMeeting = () => {
+    handleScheduleCall() // Same as schedule call
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
+      <DashboardShell title="Loading..." userRole="relationship_manager" userName={user?.name || undefined}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        </div>
+      </DashboardShell>
     )
   }
 
-  if (!lead) {
+  if (error || !lead) {
     return (
-      <div className="space-y-6">
-        <Link href="/leads" className="inline-flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-          <span>Back to Leads</span>
-        </Link>
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-neutral-500">Lead not found</p>
-          </CardContent>
-        </Card>
-      </div>
+      <DashboardShell title="Lead Not Found" userRole="relationship_manager" userName={user?.name || undefined}>
+        <div className="space-y-6">
+          <Link href="/leads" className="inline-flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back to Leads</span>
+          </Link>
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-neutral-500">{error || 'Lead not found'}</p>
+              {error && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => window.location.reload()}
+                >
+                  Try Again
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardShell>
     )
   }
 
-  const recommendation = aiLeadScoringService.getScoreRecommendation(lead.aiScore)
-  const insights = aiLeadScoringService.getScoreInsights(lead.aiScoreBreakdown)
+  // At this point, lead is guaranteed to be non-null due to early return above
+  const currentLead = lead
+  const recommendation = aiLeadScoringService.getScoreRecommendation(currentLead.aiScore)
+  const insights = aiLeadScoringService.getScoreInsights(currentLead.aiScoreBreakdown)
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Link href="/leads" className="inline-flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-          <span>Back to Leads</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => router.push(`/leads/${lead.id}/edit`)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Lead
-          </Button>
-          {lead.status === 'active' && lead.pipelineStage === 'onboarding' && (
-            <Button onClick={handleConvertToClient}>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Convert to Client
+    <DashboardShell title={currentLead.companyName} userRole="relationship_manager" userName={user?.name || undefined}>
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <Link href="/leads" className="inline-flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back to Leads</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => router.push(`/leads/${currentLead.id}/edit`)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Lead
             </Button>
-          )}
+            {currentLead.status === 'active' && currentLead.pipelineStage === 'onboarding' && (
+              <Button onClick={handleConvertToClient} disabled={converting}>
+                {converting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Converting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Convert to Client
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* Lead Overview */}
       <Card className="border-l-4 border-l-primary-500">
@@ -97,26 +212,26 @@ export default function LeadDetailsPage({ params }: LeadDetailsPageProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <Building2 className="h-6 w-6 text-primary-600" />
-                <h1 className="font-sans text-3xl font-bold text-neutral-900">{lead.companyName}</h1>
+                <h1 className="font-sans text-3xl font-bold text-neutral-900">{currentLead.companyName}</h1>
               </div>
               <div className="flex items-center gap-4 text-neutral-600">
                 <span className="flex items-center gap-1">
-                  {lead.industry}
+                  {currentLead.industry}
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <MapPin className="h-4 w-4" />
-                  {lead.country}
+                  {currentLead.country}
                 </span>
-                {lead.companySize && (
+                {currentLead.companySize && (
                   <>
                     <span>•</span>
-                    <span>{lead.companySize}</span>
+                    <span>{currentLead.companySize}</span>
                   </>
                 )}
               </div>
             </div>
-            <AIScoreBadge score={lead.aiScore} breakdown={lead.aiScoreBreakdown} size="lg" />
+            <AIScoreBadge score={currentLead.aiScore} breakdown={currentLead.aiScoreBreakdown} size="lg" />
           </div>
         </CardContent>
       </Card>
@@ -136,41 +251,41 @@ export default function LeadDetailsPage({ params }: LeadDetailsPageProps) {
                 </div>
                 <div>
                   <p className="text-sm text-neutral-500">Email</p>
-                  <p className="font-medium">{lead.contactEmail}</p>
+                  <p className="font-medium">{currentLead.contactEmail}</p>
                 </div>
               </div>
-              {lead.contactPhone && (
+              {currentLead.contactPhone && (
                 <div className="flex items-center gap-3 text-neutral-700">
                   <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
                     <Phone className="h-4 w-4 text-primary-600" />
                   </div>
                   <div>
                     <p className="text-sm text-neutral-500">Phone</p>
-                    <p className="font-medium">{lead.contactPhone}</p>
+                    <p className="font-medium">{currentLead.contactPhone}</p>
                   </div>
                 </div>
               )}
-              {lead.website && (
+              {currentLead.website && (
                 <div className="flex items-center gap-3 text-neutral-700">
                   <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
                     <Globe className="h-4 w-4 text-primary-600" />
                   </div>
                   <div>
                     <p className="text-sm text-neutral-500">Website</p>
-                    <a href={lead.website} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary-600">
-                      {lead.website.replace('https://', '')}
+                    <a href={currentLead.website} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary-600">
+                      {currentLead.website.replace('https://', '')}
                     </a>
                   </div>
                 </div>
               )}
-              {lead.linkedin && (
+              {currentLead.linkedin && (
                 <div className="flex items-center gap-3 text-neutral-700">
                   <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
                     <Linkedin className="h-4 w-4 text-primary-600" />
                   </div>
                   <div>
                     <p className="text-sm text-neutral-500">LinkedIn</p>
-                    <a href={lead.linkedin} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary-600">
+                    <a href={currentLead.linkedin} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary-600">
                       View Profile
                     </a>
                   </div>
@@ -215,7 +330,7 @@ export default function LeadDetailsPage({ params }: LeadDetailsPageProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {lead.activities.map((activity) => (
+                {currentLead.activities.map((activity) => (
                   <div key={activity.id} className="flex gap-4">
                     <div className="flex flex-col items-center">
                       <div className={cn(
@@ -241,13 +356,13 @@ export default function LeadDetailsPage({ params }: LeadDetailsPageProps) {
           </Card>
 
           {/* Notes */}
-          {lead.notes && (
+          {currentLead.notes && (
             <Card>
               <CardHeader>
                 <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-neutral-700 whitespace-pre-wrap">{lead.notes}</p>
+                <p className="text-neutral-700 whitespace-pre-wrap">{currentLead.notes}</p>
               </CardContent>
             </Card>
           )}
@@ -263,46 +378,46 @@ export default function LeadDetailsPage({ params }: LeadDetailsPageProps) {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm text-neutral-500 mb-1">Pipeline Stage</p>
-                <Badge className="text-sm">{getStageDisplayName(lead.pipelineStage)}</Badge>
+                <Badge className="text-sm">{getStageDisplayName(currentLead.pipelineStage)}</Badge>
               </div>
               <div>
                 <p className="text-sm text-neutral-500 mb-1">Lead Status</p>
                 <Badge variant="outline" className="text-sm">
-                  {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                  {currentLead.status.charAt(0).toUpperCase() + currentLead.status.slice(1)}
                 </Badge>
               </div>
               <div>
                 <p className="text-sm text-neutral-500 mb-1">Assigned To</p>
-                <p className="font-medium text-neutral-900">{lead.assignedToName}</p>
+                <p className="font-medium text-neutral-900">{currentLead.assignedToName}</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Financial Details */}
-          {(lead.estimatedRevenue || lead.expectedCloseDate) && (
+          {(currentLead.estimatedRevenue || currentLead.expectedCloseDate) && (
             <Card>
               <CardHeader>
                 <CardTitle>Financial Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {lead.estimatedRevenue && (
+                {currentLead.estimatedRevenue && (
                   <div className="flex items-center gap-3">
                     <DollarSign className="h-5 w-5 text-green-600" />
                     <div>
                       <p className="text-sm text-neutral-500">Estimated Revenue</p>
                       <p className="font-semibold text-lg text-neutral-900">
-                        ${lead.estimatedRevenue.toLocaleString()}
+                        ${currentLead.estimatedRevenue.toLocaleString()}
                       </p>
                     </div>
                   </div>
                 )}
-                {lead.expectedCloseDate && (
+                {currentLead.expectedCloseDate && (
                   <div className="flex items-center gap-3">
                     <Calendar className="h-5 w-5 text-primary-600" />
                     <div>
                       <p className="text-sm text-neutral-500">Expected Close Date</p>
                       <p className="font-medium text-neutral-900">
-                        {new Date(lead.expectedCloseDate).toLocaleDateString('en-US', {
+                        {new Date(currentLead.expectedCloseDate).toLocaleDateString('en-US', {
                           month: 'long',
                           day: 'numeric',
                           year: 'numeric',
@@ -321,27 +436,114 @@ export default function LeadDetailsPage({ params }: LeadDetailsPageProps) {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleSendEmail}
+              >
                 <Mail className="mr-2 h-4 w-4" />
                 Send Email
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleScheduleCall}
+              >
                 <Phone className="mr-2 h-4 w-4" />
                 Schedule Call
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleBookMeeting}
+              >
                 <Calendar className="mr-2 h-4 w-4" />
                 Book Meeting
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Lead
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setShowDeleteModal(true)}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Lead
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false)
+          setDeleteConfirm('')
+        }}
+        title="Delete Lead"
+        description="This action cannot be undone. This will permanently delete the lead and all associated data."
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+            <p className="text-sm text-red-900">
+              <strong>Warning:</strong> Deleting this lead will remove all associated data including activities, notes, and meetings.
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-900 mb-2 block">
+              Type <strong>{currentLead.companyName}</strong> to confirm deletion
+            </label>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder={currentLead.companyName}
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowDeleteModal(false)
+                setDeleteConfirm('')
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={handleDeleteLead}
+              disabled={deleting || deleteConfirm !== currentLead.companyName}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Lead
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      </div>
+    </DashboardShell>
   )
 }
 

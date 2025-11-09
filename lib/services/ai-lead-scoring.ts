@@ -1,15 +1,44 @@
 import { Lead, AIScoreBreakdown } from '@/lib/types/lead'
+import { comprehensiveAIService } from './comprehensive-ai-service'
 
 /**
- * Mock AI Lead Scoring Service
- * In production, this would call an actual AI/ML model
+ * AI Lead Scoring Service
+ * Uses DeepSeek AI for comprehensive analysis when available, falls back to rule-based scoring
  */
 
 export class AILeadScoringService {
+  private useDeepSeek: boolean = true
+
   /**
    * Calculate AI score for a lead based on various factors
+   * Uses DeepSeek AI when available, otherwise falls back to rule-based scoring
    */
-  calculateLeadScore(lead: Partial<Lead>): AIScoreBreakdown {
+  async calculateLeadScore(lead: Partial<Lead> | Lead): Promise<AIScoreBreakdown> {
+    // If we have a full lead with ID, try to use comprehensive AI analysis
+    if (this.useDeepSeek && 'id' in lead && lead.id) {
+      try {
+        const analysis = await comprehensiveAIService.analyzeLead(lead.id)
+        return {
+          companySize: analysis.breakdown.companySize || 50,
+          industry: analysis.breakdown.industry || 50,
+          geography: analysis.breakdown.geography || 50,
+          contactQuality: analysis.breakdown.contactQuality || 50,
+          overall: analysis.score,
+        }
+      } catch (error) {
+        console.error('Error in AI analysis, falling back to rule-based scoring:', error)
+        // Fall through to rule-based scoring
+      }
+    }
+
+    // Fallback to rule-based scoring
+    return this.calculateRuleBasedScore(lead)
+  }
+
+  /**
+   * Calculate score using rule-based logic (fallback)
+   */
+  calculateRuleBasedScore(lead: Partial<Lead>): AIScoreBreakdown {
     const companySizeScore = this.scoreCompanySize(lead.companySize)
     const industryScore = this.scoreIndustry(lead.industry)
     const geographyScore = this.scoreGeography(lead.country)
@@ -29,6 +58,13 @@ export class AILeadScoringService {
       contactQuality: contactQualityScore,
       overall,
     }
+  }
+
+  /**
+   * Sync version for backwards compatibility (uses rule-based scoring)
+   */
+  calculateLeadScoreSync(lead: Partial<Lead>): AIScoreBreakdown {
+    return this.calculateRuleBasedScore(lead)
   }
 
   private scoreCompanySize(size?: string): number {

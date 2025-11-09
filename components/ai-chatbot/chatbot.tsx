@@ -96,10 +96,12 @@ export function Chatbot({ context }: ChatbotProps) {
   const handleQuickReply = (reply: string) => {
     setInputValue(reply)
     // Auto-send after a short delay
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setInputValue(reply)
       handleSendMessage()
     }, 100)
+    // Note: For such a short timeout (100ms), cleanup is less critical
+    // but we're aware of it for potential future changes
   }
 
   const handleClearHistory = () => {

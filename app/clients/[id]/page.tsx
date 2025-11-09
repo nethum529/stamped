@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { DashboardShell } from '@/components/layout/dashboard-shell'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -24,85 +24,148 @@ import {
   Mail,
   Phone,
   MapPin,
+  Loader2,
 } from 'lucide-react'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { mockDataService } from '@/lib/services/mock-data-service'
+import { Client } from '@/lib/types/client'
+import { useToast } from '@/components/ui/toast'
+import { getUserFriendlyErrorMessage } from '@/lib/utils/error-handling'
 
 export default function ClientDetailPage() {
+  const { user } = useAuth()
   const params = useParams()
+  const router = useRouter()
+  const { showSuccess, showError } = useToast()
+  const [client, setClient] = useState<Client | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [comment, setComment] = useState('')
+  const [approving, setApproving] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [viewingDocument, setViewingDocument] = useState<string | null>(null)
+  const [downloadingDocument, setDownloadingDocument] = useState<string | null>(null)
 
-  // mock data for now, in prod fetch from api using params.id
-  const client = {
-    id: params.id,
-    name: 'Acme Corporation',
-    legalName: 'Acme Corporation Inc.',
-    status: 'Under Review',
-    riskLevel: 'medium',
-    country: 'United States',
-    industry: 'Technology',
-    entityType: 'Corporation',
-    registrationNumber: '123456789',
-    annualRevenue: '$50,000,000',
-    employees: '250',
-    primaryContact: {
-      name: 'John Doe',
-      email: 'john.doe@acmecorp.com',
-      phone: '+1 (555) 123-4567',
-    },
-    address: {
-      street: '123 Main Street, Suite 100',
-      city: 'New York',
-      state: 'NY',
-      postalCode: '10001',
-      country: 'United States',
-    },
-    documents: [
-      { id: '1', name: 'Certificate of Incorporation.pdf', uploadDate: '2024-01-15', type: 'Certificate' },
-      { id: '2', name: 'Articles of Association.pdf', uploadDate: '2024-01-15', type: 'Legal' },
-      { id: '3', name: 'Business License.pdf', uploadDate: '2024-01-15', type: 'License' },
-    ],
-    screening: {
-      status: 'Completed',
-      result: 'Match Found',
-      details: '1 potential match in sanctions database',
-      confidence: 'Medium',
-    },
-    history: [
-      {
-        id: '1',
-        title: 'Sanctions screening completed',
-        description: '1 potential match found - requires manual review',
-        timestamp: '2 hours ago',
-        variant: 'warning' as const,
-      },
-      {
-        id: '2',
-        title: 'Documents uploaded',
-        description: 'All required documents received',
-        timestamp: '5 hours ago',
-        variant: 'success' as const,
-      },
-      {
-        id: '3',
-        title: 'Application submitted',
-        description: 'Client onboarding initiated by Jane Smith',
-        timestamp: '1 day ago',
-        variant: 'default' as const,
-      },
-    ],
+  const fetchClient = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const fetchedClient = await mockDataService.getClientById(params.id as string)
+      if (!fetchedClient) {
+        setError('Client not found')
+      } else {
+        setClient(fetchedClient)
+      }
+    } catch (err) {
+      console.error('Failed to fetch client:', err)
+      setError('Failed to load client details. Please try again.')
+      showError(getUserFriendlyErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleApprove = () => {
-    console.log('Approved with comment:', comment)
-    setShowApproveModal(false)
-    setComment('')
+  useEffect(() => {
+    if (params.id) {
+      fetchClient()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id])
+
+  const handleApprove = async () => {
+    if (!client) return
+
+    setApproving(true)
+    try {
+      const updatedClient = await mockDataService.updateClientStatus(client.id, 'approved', comment)
+      if (updatedClient) {
+        setClient(updatedClient)
+        showSuccess('Client approved successfully')
+        setShowApproveModal(false)
+        setComment('')
+        // Refresh the page data
+        await fetchClient()
+      } else {
+        throw new Error('Failed to update client status')
+      }
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+    } finally {
+      setApproving(false)
+    }
   }
 
-  const handleReject = () => {
-    console.log('Rejected with comment:', comment)
-    setShowRejectModal(false)
-    setComment('')
+  const handleReject = async () => {
+    if (!client) return
+    if (!comment.trim()) {
+      showError('Please provide a reason for rejection')
+      return
+    }
+
+    setRejecting(true)
+    try {
+      const updatedClient = await mockDataService.updateClientStatus(client.id, 'rejected', comment)
+      if (updatedClient) {
+        setClient(updatedClient)
+        showSuccess('Client rejected successfully')
+        setShowRejectModal(false)
+        setComment('')
+        // Refresh the page data
+        await fetchClient()
+      } else {
+        throw new Error('Failed to update client status')
+      }
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+    } finally {
+      setRejecting(false)
+    }
+  }
+
+  const handleViewDocument = (documentId: string) => {
+    setViewingDocument(documentId)
+    // In a real app, this would open a document viewer
+    // For now, we'll open the document URL in a new window
+    const doc = client?.documents?.find(d => d.id === documentId)
+    if (doc?.url) {
+      window.open(doc.url, '_blank')
+      showSuccess('Opening document in new window')
+    } else {
+      showError('Document URL not available')
+    }
+    setTimeout(() => setViewingDocument(null), 1000)
+  }
+
+  const handleDownloadDocument = async (documentId: string) => {
+    setDownloadingDocument(documentId)
+    try {
+      const doc = client?.documents?.find(d => d.id === documentId)
+      if (!doc) {
+        showError('Document not found')
+        return
+      }
+
+      // In a real app, this would trigger a download from the server
+      // For now, we'll simulate the download
+      if (doc.url) {
+        // Create a temporary link and trigger download
+        const link = document.createElement('a')
+        link.href = doc.url || '#'
+        link.download = doc.fileName || doc.name || 'document.pdf'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        showSuccess(`Downloading ${doc.fileName || doc.name}...`)
+      } else {
+        showError('Document download URL not available')
+      }
+    } catch (err) {
+      showError(getUserFriendlyErrorMessage(err))
+    } finally {
+      setDownloadingDocument(null)
+    }
   }
 
   const getRiskBadgeVariant = (level: string) => {
@@ -120,25 +183,66 @@ export default function ClientDetailPage() {
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'Approved':
+      case 'approved':
         return 'success'
-      case 'Under Review':
+      case 'under_review':
+      case 'pending':
         return 'warning'
-      case 'Rejected':
+      case 'rejected':
         return 'error'
       default:
         return 'default'
     }
   }
 
+  const getLifecycleStageDisplay = (stage: string) => {
+    return stage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }
+
+  if (loading) {
+    return (
+      <DashboardShell title="Loading..." userRole="compliance" userName={user?.name || undefined}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        </div>
+      </DashboardShell>
+    )
+  }
+
+  if (error || !client) {
+    return (
+      <DashboardShell title="Client Not Found" userRole="compliance" userName={user?.name || undefined}>
+        <div className="space-y-6">
+          <Breadcrumbs
+            items={[
+              { label: 'Dashboard', href: '/dashboard' },
+              { label: 'Clients', href: '/clients' },
+              { label: 'Not Found' },
+            ]}
+          />
+          <Alert variant="error">
+            <AlertTriangle className="h-4 w-4" />
+            <div>
+              <p className="font-medium">{error || 'Client not found'}</p>
+              <p className="text-sm mt-1">The client you're looking for doesn't exist or has been removed.</p>
+            </div>
+          </Alert>
+          <Button onClick={() => window.location.href = '/clients'}>
+            Back to Clients
+          </Button>
+        </div>
+      </DashboardShell>
+    )
+  }
+
   return (
-    <DashboardShell title={client.name} userRole="compliance" userName="John Smith">
+    <DashboardShell title={client.companyName} userRole="compliance" userName={user?.name || undefined}>
       <div className="space-y-6">
         <Breadcrumbs
           items={[
             { label: 'Dashboard', href: '/dashboard' },
             { label: 'Clients', href: '/clients' },
-            { label: client.name },
+            { label: client.companyName },
           ]}
         />
 
@@ -152,19 +256,19 @@ export default function ClientDetailPage() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-neutral-900">
-                    {client.name}
+                    {client.companyName}
                   </h1>
                   <p className="mt-1 text-sm text-neutral-600">
-                    {client.legalName}
+                    {client.industry} • {client.country}
                   </p>
                   <div className="mt-3 flex gap-2">
                     <Badge variant={getStatusBadgeVariant(client.status)}>
-                      {client.status}
+                      {getLifecycleStageDisplay(client.lifecycleStage)}
                     </Badge>
                     <Badge variant={getRiskBadgeVariant(client.riskLevel)}>
                       Risk: {client.riskLevel.toUpperCase()}
                     </Badge>
-                    <Badge variant="outline">{client.country}</Badge>
+                    <Badge variant="outline">{client.status}</Badge>
                   </div>
                 </div>
               </div>
@@ -173,23 +277,36 @@ export default function ClientDetailPage() {
                 <Button
                   variant="outline"
                   onClick={() => setShowRejectModal(true)}
+                  disabled={rejecting || approving || client.status === 'rejected'}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Reject
                 </Button>
-                <Button onClick={() => setShowApproveModal(true)}>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Approve
+                <Button 
+                  onClick={() => setShowApproveModal(true)}
+                  disabled={rejecting || approving || client.status === 'approved'}
+                >
+                  {approving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Approve
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* show alert if sanctions match found */}
-        {client.screening.result === 'Match Found' && (
-          <Alert variant="warning" title="Sanctions Screening Alert">
-            {client.screening.details} - Please review before proceeding with approval.
+        {/* show alert if high risk */}
+        {(client.riskLevel === 'high' || client.riskLevel === 'critical') && (
+          <Alert variant="warning" title="High Risk Alert">
+            This client has been flagged as {client.riskLevel} risk. Please review carefully before proceeding.
           </Alert>
         )}
 
@@ -210,27 +327,45 @@ export default function ClientDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <p className="text-sm font-medium text-neutral-500">Entity Type</p>
-                    <p className="mt-1 text-base text-neutral-900">{client.entityType}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-neutral-500">Registration Number</p>
-                    <p className="mt-1 text-base text-neutral-900">{client.registrationNumber}</p>
+                    <p className="text-sm font-medium text-neutral-500">Company Name</p>
+                    <p className="mt-1 text-base text-neutral-900">{client.companyName}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-neutral-500">Industry</p>
                     <p className="mt-1 text-base text-neutral-900">{client.industry}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-500">Annual Revenue</p>
-                      <p className="mt-1 text-base text-neutral-900">{client.annualRevenue}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-500">Employees</p>
-                      <p className="mt-1 text-base text-neutral-900">{client.employees}</p>
-                    </div>
+                  <div>
+                    <p className="text-sm font-medium text-neutral-500">Country</p>
+                    <p className="mt-1 text-base text-neutral-900">{client.country}</p>
                   </div>
+                  {client.city && (
+                    <div>
+                      <p className="text-sm font-medium text-neutral-500">City</p>
+                      <p className="mt-1 text-base text-neutral-900">{client.city}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    {client.annualRevenue && (
+                      <div>
+                        <p className="text-sm font-medium text-neutral-500">Annual Revenue</p>
+                        <p className="mt-1 text-base text-neutral-900">${client.annualRevenue.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {client.numberOfEmployees && (
+                      <div>
+                        <p className="text-sm font-medium text-neutral-500">Employees</p>
+                        <p className="mt-1 text-base text-neutral-900">{client.numberOfEmployees}</p>
+                      </div>
+                    )}
+                  </div>
+                  {client.website && (
+                    <div>
+                      <p className="text-sm font-medium text-neutral-500">Website</p>
+                      <a href={client.website} target="_blank" rel="noopener noreferrer" className="mt-1 text-base text-primary-600 hover:underline">
+                        {client.website}
+                      </a>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -239,25 +374,52 @@ export default function ClientDetailPage() {
                   <CardTitle>Contact Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-500">Primary Contact</p>
-                    <p className="mt-1 text-base text-neutral-900">{client.primaryContact.name}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-neutral-700">
-                    <Mail className="h-4 w-4" />
-                    <span className="text-sm">{client.primaryContact.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-neutral-700">
-                    <Phone className="h-4 w-4" />
-                    <span className="text-sm">{client.primaryContact.phone}</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-neutral-700">
-                    <MapPin className="h-4 w-4 mt-0.5" />
-                    <div className="text-sm">
-                      <p>{client.address.street}</p>
-                      <p>{client.address.city}, {client.address.state} {client.address.postalCode}</p>
-                      <p>{client.address.country}</p>
+                  {client.primaryContact && (
+                    <div>
+                      <p className="text-sm font-medium text-neutral-500">Primary Contact</p>
+                      <p className="mt-1 text-base text-neutral-900">{client.primaryContact.name}</p>
+                      {client.primaryContact.email && (
+                        <div className="flex items-center gap-2 text-neutral-700 mt-2">
+                          <Mail className="h-4 w-4" />
+                          <span className="text-sm">{client.primaryContact.email}</span>
+                        </div>
+                      )}
+                      {client.primaryContact.phone && (
+                        <div className="flex items-center gap-2 text-neutral-700 mt-2">
+                          <Phone className="h-4 w-4" />
+                          <span className="text-sm">{client.primaryContact.phone}</span>
+                        </div>
+                      )}
                     </div>
+                  )}
+                  {client.email && (
+                    <div className="flex items-center gap-2 text-neutral-700">
+                      <Mail className="h-4 w-4" />
+                      <span className="text-sm">{client.email}</span>
+                    </div>
+                  )}
+                  {client.phone && (
+                    <div className="flex items-center gap-2 text-neutral-700">
+                      <Phone className="h-4 w-4" />
+                      <span className="text-sm">{client.phone}</span>
+                    </div>
+                  )}
+                  {client.address && (
+                    <div className="flex items-start gap-2 text-neutral-700">
+                      <MapPin className="h-4 w-4 mt-0.5" />
+                      <div className="text-sm">
+                        <p>{client.address}</p>
+                        {client.city && <p>{client.city}, {client.country}</p>}
+                      </div>
+                    </div>
+                  )}
+                  <div className="pt-4 border-t border-neutral-200">
+                    <p className="text-sm font-medium text-neutral-500">Assigned Relationship Manager</p>
+                    <p className="mt-1 text-base text-neutral-900">{client.assignedRMName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-neutral-500">Assigned Compliance Officer</p>
+                    <p className="mt-1 text-base text-neutral-900">{client.assignedOfficerName}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -274,32 +436,57 @@ export default function ClientDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {client.documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between rounded-lg border border-neutral-200 p-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-10 w-10 text-primary-600" />
-                        <div>
-                          <p className="font-medium text-neutral-900">{doc.name}</p>
-                          <p className="text-sm text-neutral-500">
-                            {doc.type} • Uploaded {doc.uploadDate}
-                          </p>
+                  {client.documents && client.documents.length > 0 ? (
+                    client.documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between rounded-lg border border-neutral-200 p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-10 w-10 text-primary-600" />
+                          <div>
+                            <p className="font-medium text-neutral-900">{doc.fileName}</p>
+                            <p className="text-sm text-neutral-500">
+                              {doc.type} • Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
+                            </p>
+                            <Badge variant={doc.status === 'approved' ? 'success' : doc.status === 'rejected' ? 'error' : 'warning'} className="mt-1">
+                              {doc.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewDocument(doc.id)}
+                            disabled={viewingDocument === doc.id}
+                          >
+                            {viewingDocument === doc.id ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Eye className="mr-2 h-4 w-4" />
+                            )}
+                            View
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDownloadDocument(doc.id)}
+                            disabled={downloadingDocument === doc.id}
+                          >
+                            {downloadingDocument === doc.id ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="mr-2 h-4 w-4" />
+                            )}
+                            Download
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-neutral-500 text-center py-8">No documents uploaded yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -309,28 +496,46 @@ export default function ClientDetailPage() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Sanctions Screening</CardTitle>
+                  <CardTitle>Risk Assessment</CardTitle>
                   <CardDescription>
-                    Latest screening results
+                    Last assessed: {new Date(client.riskAssessment.lastAssessedAt).toLocaleString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-neutral-500">Status</span>
-                      <Badge variant="success">{client.screening.status}</Badge>
+                      <span className="text-sm font-medium text-neutral-500">Overall Risk</span>
+                      <Badge variant={getRiskBadgeVariant(client.riskAssessment.overall)}>
+                        {client.riskAssessment.overall.toUpperCase()}
+                      </Badge>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-neutral-500">Result</span>
-                      <Badge variant="warning">{client.screening.result}</Badge>
+                    <div className="space-y-3 pt-4 border-t border-neutral-200">
+                      <p className="text-sm font-medium text-neutral-500">Risk Scores (0-100)</p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-neutral-700">Sanctions Risk</span>
+                          <span className="text-sm font-medium">{client.riskAssessment.sanctionsRisk}/100</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-neutral-700">Adverse Media Risk</span>
+                          <span className="text-sm font-medium">{client.riskAssessment.adverseMediaRisk}/100</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-neutral-700">Financial Risk</span>
+                          <span className="text-sm font-medium">{client.riskAssessment.financialRisk}/100</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-neutral-700">Reputational Risk</span>
+                          <span className="text-sm font-medium">{client.riskAssessment.reputationalRisk}/100</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-neutral-700">Geographic Risk</span>
+                          <span className="text-sm font-medium">{client.riskAssessment.geographicRisk}/100</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-neutral-500">Confidence</span>
-                      <span className="text-sm text-neutral-900">{client.screening.confidence}</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-500">Details</p>
-                      <p className="mt-2 text-sm text-neutral-700">{client.screening.details}</p>
+                    <div className="pt-4 border-t border-neutral-200">
+                      <p className="text-sm text-neutral-500">Assessed by: {client.riskAssessment.lastAssessedBy}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -338,33 +543,30 @@ export default function ClientDetailPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Risk Assessment</CardTitle>
+                  <CardTitle>Lifecycle Stage</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-neutral-500">Overall Risk</span>
-                      <Badge variant={getRiskBadgeVariant(client.riskLevel)}>
-                        {client.riskLevel.toUpperCase()}
-                      </Badge>
+                      <span className="text-sm font-medium text-neutral-500">Current Stage</span>
+                      <Badge>{getLifecycleStageDisplay(client.lifecycleStage)}</Badge>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-500 mb-2">Risk Factors</p>
-                      <ul className="space-y-2">
-                        <li className="flex items-start gap-2 text-sm">
-                          <AlertTriangle className="h-4 w-4 text-warning-600 mt-0.5" />
-                          <span>Potential sanctions match requires review</span>
-                        </li>
-                        <li className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-success-600 mt-0.5" />
-                          <span>All required documents submitted</span>
-                        </li>
-                        <li className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-success-600 mt-0.5" />
-                          <span>Company registered in low-risk jurisdiction</span>
-                        </li>
-                      </ul>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-neutral-500">Status</span>
+                      <Badge variant={getStatusBadgeVariant(client.status)}>{client.status}</Badge>
                     </div>
+                    {client.onboardingStartDate && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-neutral-500">Onboarding Started</span>
+                        <span className="text-sm text-neutral-900">{new Date(client.onboardingStartDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {client.approvalDate && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-neutral-500">Approved On</span>
+                        <span className="text-sm text-neutral-900">{new Date(client.approvalDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -374,13 +576,39 @@ export default function ClientDetailPage() {
           <TabsContent value="history">
             <Card>
               <CardHeader>
-                <CardTitle>Activity Timeline</CardTitle>
+                <CardTitle>Lifecycle History</CardTitle>
                 <CardDescription>
-                  Complete history of all actions and events
+                  Complete history of all lifecycle stage changes
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Timeline items={client.history} />
+                {client.lifecycleHistory && client.lifecycleHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {client.lifecycleHistory.map((item) => (
+                      <div key={item.id} className="flex gap-4 pb-4 border-b border-neutral-200 last:border-0">
+                        <div className="flex flex-col items-center">
+                          <div className="w-2 h-2 rounded-full bg-primary-500 mt-2"></div>
+                          <div className="w-0.5 h-full bg-neutral-200 min-h-[40px]"></div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-neutral-900">
+                            {getLifecycleStageDisplay(item.stage)}
+                          </p>
+                          <p className="text-sm text-neutral-600 mt-1">
+                            Changed by {item.changedByName} • {new Date(item.timestamp).toLocaleString()}
+                          </p>
+                          {item.notes && (
+                            <p className="text-sm text-neutral-700 mt-2 bg-neutral-50 p-2 rounded">
+                              {item.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-500 text-center py-8">No history available</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -403,12 +631,28 @@ export default function ClientDetailPage() {
             rows={4}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowApproveModal(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowApproveModal(false)
+                setComment('')
+              }}
+              disabled={approving}
+            >
               Cancel
             </Button>
-            <Button onClick={handleApprove}>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Approve
+            <Button onClick={handleApprove} disabled={approving}>
+              {approving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -431,12 +675,28 @@ export default function ClientDetailPage() {
             required
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowRejectModal(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowRejectModal(false)
+                setComment('')
+              }}
+              disabled={rejecting}
+            >
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleReject}>
-              <XCircle className="mr-2 h-4 w-4" />
-              Reject
+            <Button variant="danger" onClick={handleReject} disabled={rejecting}>
+              {rejecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Rejecting...
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject
+                </>
+              )}
             </Button>
           </div>
         </div>

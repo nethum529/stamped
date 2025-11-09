@@ -126,8 +126,8 @@ export default function LeadForm({ onCancel }: LeadFormProps) {
     setLoading(true)
 
     try {
-      // Calculate AI score
-      const aiScoreBreakdown = aiLeadScoringService.calculateLeadScore({
+      // Calculate AI score (use sync version for new leads without ID)
+      const aiScoreBreakdown = aiLeadScoringService.calculateLeadScoreSync({
         companyName: formData.companyName,
         industry: formData.industry as Industry,
         country: formData.country,

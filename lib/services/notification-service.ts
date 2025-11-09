@@ -116,24 +116,6 @@ class NotificationService {
   private notifyListeners(): void {
     this.listeners.forEach((listener) => listener(this.notifications))
   }
-
-  // Simulate real-time notifications (for demo purposes)
-  startSimulation(): void {
-    setInterval(() => {
-      const randomTypes: NotificationType[] = ['info', 'success', 'warning']
-      const randomMessages = [
-        { title: 'Lead Updated', message: 'A lead has moved to the next stage.' },
-        { title: 'Document Uploaded', message: 'A client uploaded a new document.' },
-        { title: 'Review Requested', message: 'Compliance review needed for a document.' },
-      ]
-
-      const random = randomMessages[Math.floor(Math.random() * randomMessages.length)]
-      this.addNotification({
-        ...random,
-        type: randomTypes[Math.floor(Math.random() * randomTypes.length)],
-      })
-    }, 60000) // Every 60 seconds
-  }
 }
 
 export const notificationService = new NotificationService()

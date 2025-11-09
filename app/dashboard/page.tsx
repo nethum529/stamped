@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Timeline } from '@/components/ui/timeline'
-import { mockLeads } from '@/lib/mock-data/leads'
 import { Lead, getStageDisplayName } from '@/lib/types/lead'
 import AIScoreBadge from '@/components/leads/ai-score-badge'
 import {
@@ -22,25 +21,48 @@ import {
   DollarSign,
   Calendar,
   TrendingDown,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { mockDataService } from '@/lib/services/mock-data-service'
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [loading, setLoading] = useState(true)
   
-  // Simulate role detection - in real app, get from auth context
-  const userRole = 'relationship_manager' // Mock for now
+  // Get user role from auth context - will be used by DashboardShell if not explicitly passed
+  // DashboardShell will automatically use user?.role as fallback
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true)
+        const fetchedLeads = await mockDataService.getLeads()
+        setLeads(fetchedLeads)
+      } catch (error) {
+        console.error('Failed to fetch leads:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    // Only fetch if auth is not loading
+    if (!authLoading) {
+      fetchData()
+    }
+  }, [authLoading])
 
   // Calculate lead metrics
-  const activeLeads = mockLeads.filter((lead) => lead.status === 'active')
+  const activeLeads = leads.filter((lead) => lead.status === 'active')
   const totalPipelineValue = activeLeads.reduce((sum, lead) => sum + (lead.estimatedRevenue || 0), 0)
   const avgDealSize = activeLeads.length > 0 ? totalPipelineValue / activeLeads.length : 0
   
   // Conversion rate
-  const totalLeads = mockLeads.length
-  const convertedLeads = mockLeads.filter((lead) => lead.status === 'converted' || lead.pipelineStage === 'onboarding').length
+  const totalLeads = leads.length
+  const convertedLeads = leads.filter((lead) => lead.status === 'converted' || lead.pipelineStage === 'onboarding').length
   const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0
 
   // Top prospects (leads with high AI score in active stages)
@@ -77,6 +99,16 @@ export default function DashboardPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount)
+  }
+
+  if (loading || authLoading) {
+    return (
+      <DashboardShell title="Dashboard" userName={user?.name || undefined}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        </div>
+      </DashboardShell>
+    )
   }
 
   const stats = [
@@ -126,7 +158,6 @@ export default function DashboardPage() {
     <DashboardShell
       title="Dashboard"
       notificationCount={upcomingMeetings.length}
-      userRole="relationship_manager"
       userName={user?.name}
     >
       <div className="space-y-8 md:space-y-10">
@@ -153,7 +184,7 @@ export default function DashboardPage() {
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
               >
                 <Card className="group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-neutral-200/50 bg-white/90 h-full">
                   <CardContent className="p-6 md:p-7">
@@ -177,7 +208,6 @@ export default function DashboardPage() {
                       <div
                         className={cn(
                           'rounded-xl p-3 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3',
-                          stat.variant === 'error' && 'bg-red-100 text-red-600',
                           stat.variant === 'warning' && 'bg-yellow-100 text-yellow-600',
                           stat.variant === 'success' && 'bg-green-100 text-green-600',
                           stat.variant === 'default' && 'bg-gradient-to-br from-primary-100 to-turquoise-100 text-primary-600'
@@ -196,7 +226,7 @@ export default function DashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
           className="grid gap-6 lg:grid-cols-3"
         >
           {/* Top Prospects */}
@@ -299,7 +329,7 @@ export default function DashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
           className="grid gap-6 lg:grid-cols-2"
         >
           {/* Pipeline Overview */}
@@ -347,7 +377,7 @@ export default function DashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
         >
           <Card>
           <CardHeader>

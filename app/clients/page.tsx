@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Plus, Filter, Download, Loader2 } from 'lucide-react'
 import { mockDataService } from '@/lib/services/mock-data-service'
 import { Client } from '@/lib/types/client'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
@@ -59,6 +60,7 @@ const getLifecycleStageDisplay = (stage: string) => {
 }
 
 export default function ClientsPage() {
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,7 +86,7 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <DashboardShell title="Clients" userRole="compliance" userName="John Smith">
+      <DashboardShell title="Clients" userRole="compliance" userName={user?.name || undefined}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
         </div>
@@ -93,7 +95,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <DashboardShell title="Clients" userRole="compliance" userName="John Smith">
+    <DashboardShell title="Clients" userRole="compliance" userName={user?.name || undefined}>
       <div className="space-y-6">
         {/* action buttons and search */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -33,14 +33,21 @@ function LoginForm() {
 
   // Check for verification pending message from signup
   useEffect(() => {
-    const verified = searchParams.get('verified')
-    const email = searchParams.get('email')
-    
-    console.log('Login page - verified:', verified, 'email:', email) // Debug log
-    
-    if (verified === 'pending' && email) {
-      setVerificationMessage({ email: decodeURIComponent(email) })
-      setFormData(prev => ({ ...prev, email: decodeURIComponent(email) }))
+    try {
+      const verified = searchParams?.get('verified')
+      const email = searchParams?.get('email')
+      
+      console.log('Login page - verified:', verified, 'email:', email) // Debug log
+      
+      if (verified === 'pending' && email) {
+        setVerificationMessage({ email: decodeURIComponent(email) })
+        setFormData(prev => ({ ...prev, email: decodeURIComponent(email) }))
+        // Automatically show login form when coming from signup
+        // Default to employee if no user type selected
+        setSelectedUserType(prev => prev || 'employee')
+      }
+    } catch (error) {
+      console.error('Error reading search params:', error)
     }
   }, [searchParams])
 
@@ -200,7 +207,7 @@ function LoginForm() {
               transition={{ duration: 0.6 }}
               className="text-center mb-12"
             >
-              <h1 className="text-4xl md:text-5xl font-serif font-bold text-neutral-900 mb-4">
+              <h1 className="text-4xl md:text-5xl font-sans font-bold text-neutral-900 mb-4">
                 Welcome to Stamped
               </h1>
               <p className="text-lg text-neutral-600">
@@ -232,7 +239,7 @@ function LoginForm() {
                       </div>
 
                       {/* Title */}
-                      <h3 className="font-serif text-2xl font-semibold text-neutral-900 transition-colors duration-300 group-hover:text-primary-700 mb-3">
+                      <h3 className="font-sans text-2xl font-semibold text-neutral-900 transition-colors duration-300 group-hover:text-primary-700 mb-3">
                         {card.title}
                       </h3>
 
