@@ -7,141 +7,89 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import { Eye, EyeOff, CheckCircle, Mail } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { authService } from '@/lib/auth/service'
-import { validateSignUpForm } from '@/lib/auth/validation'
+import { validatePassword } from '@/lib/auth/validation'
 
-export default function SignUpPage() {
+export default function ResetPasswordPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [requiresVerification, setRequiresVerification] = useState(false)
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
     password: '',
     confirmPassword: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const validateForm = () => {
-    const validation = validateSignUpForm(
-      formData.email,
-      formData.password,
-      formData.confirmPassword,
-      formData.name
-    )
-    
-    setErrors(validation.errors)
-    return validation.valid
+    const newErrors: Record<string, string> = {}
+
+    const passwordError = validatePassword(formData.password)
+    if (passwordError) {
+      newErrors.password = passwordError
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password'
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setSuccess(false)
 
     if (!validateForm()) return
 
     setLoading(true)
 
     try {
-      const result = await authService.signUp({
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-      })
+      const result = await authService.updatePassword(formData.password)
 
       if (!result.success) {
-        // Handle field-specific errors
-        if (result.error?.field) {
-          setErrors({ [result.error.field]: result.error.message })
-        } else {
-          setError(result.error?.message || 'Failed to create account')
-        }
+        setError(result.error?.message || 'Failed to update password')
         return
       }
 
-      // Check if email verification is required
-      if (result.requiresVerification) {
-        setRequiresVerification(true)
-        setSuccess(true)
-      } else {
-        // User is automatically signed in, redirect to dashboard
+      setSuccess(true)
+
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
         router.push('/dashboard')
-      }
+      }, 2000)
     } catch (err: any) {
-      console.error('Signup error:', err)
+      console.error('Password reset error:', err)
       setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleResendVerification = async () => {
-    setLoading(true)
-    setError('')
-
-    try {
-      const result = await authService.resendVerificationEmail(formData.email)
-      
-      if (result.success) {
-        setError('')
-        alert('Verification email sent! Please check your inbox.')
-      } else {
-        setError(result.error?.message || 'Failed to resend verification email')
-      }
-    } catch (err) {
-      setError('Failed to resend verification email. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Show success screen if email verification is required
-  if (success && requiresVerification) {
+  if (success) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100/30 to-neutral-50 p-4 md:p-6">
         <div className="w-full max-w-md">
           <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl">
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <Mail className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
               <h2 className="mb-2 text-2xl font-semibold text-neutral-900">
-                Verify Your Email
+                Password Updated!
               </h2>
               <p className="mb-6 text-neutral-600">
-                We've sent a verification link to <strong>{formData.email}</strong>
+                Your password has been successfully updated.
               </p>
-              <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
-                <p className="mb-2">Please check your email and click the verification link to activate your account.</p>
-                <p>Don't forget to check your spam folder!</p>
-              </div>
-              <div className="mt-6 space-y-3">
-                <Button
-                  onClick={handleResendVerification}
-                  variant="outline"
-                  className="w-full"
-                  loading={loading}
-                >
-                  Resend Verification Email
-                </Button>
-                <Link
-                  href="/login"
-                  className="block text-sm text-primary-600 hover:text-primary-700"
-                >
-                  Back to Sign In
-                </Link>
-              </div>
-              {error && (
-                <Alert variant="error" className="mt-4">
-                  {error}
-                </Alert>
-              )}
+              <p className="text-sm text-neutral-500">
+                Redirecting to dashboard...
+              </p>
             </div>
           </div>
         </div>
@@ -165,13 +113,13 @@ export default function SignUpPage() {
             </div>
             <div className="flex-1">
               <h2 className="font-sans text-3xl font-semibold text-neutral-900">
-                Create account
+                Reset Password
               </h2>
               <p className="mt-1 font-sans italic text-base text-neutral-600">
                 compliance made simple.
               </p>
               <p className="mt-2 text-sm text-neutral-600">
-                Get started with your free account
+                Enter your new password
               </p>
             </div>
           </div>
@@ -183,37 +131,11 @@ export default function SignUpPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <Input
-              label="Full Name"
-              type="text"
-              placeholder="John Smith"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              error={errors.name}
-              required
-              autoComplete="name"
-            />
-
-            <Input
-              label="Email"
-              type="email"
-              placeholder="name@company.com"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              error={errors.email}
-              required
-              autoComplete="email"
-            />
-
             <div className="relative">
               <Input
-                label="Password"
+                label="New Password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Create a strong password"
+                placeholder="Enter your new password"
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
@@ -237,9 +159,9 @@ export default function SignUpPage() {
 
             <div className="relative">
               <Input
-                label="Confirm Password"
+                label="Confirm New Password"
                 type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Re-enter your password"
+                placeholder="Re-enter your new password"
                 value={formData.confirmPassword}
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })
@@ -261,28 +183,13 @@ export default function SignUpPage() {
               </button>
             </div>
 
-            <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                required
-                className="mt-1 h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-500"
-              />
-              <span className="text-xs text-neutral-600">
-                I agree to the{' '}
-                <button
-                  type="button"
-                  className="font-medium text-primary-600 hover:text-primary-700"
-                >
-                  Terms of Service
-                </button>{' '}
-                and{' '}
-                <button
-                  type="button"
-                  className="font-medium text-primary-600 hover:text-primary-700"
-                >
-                  Privacy Policy
-                </button>
-              </span>
+            <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-900">
+              <p className="font-medium mb-1">Password requirements:</p>
+              <ul className="space-y-1 list-disc list-inside">
+                <li>At least 8 characters long</li>
+                <li>Contains uppercase and lowercase letters</li>
+                <li>Contains at least one number</li>
+              </ul>
             </div>
 
             <Button
@@ -291,17 +198,16 @@ export default function SignUpPage() {
               size="lg"
               loading={loading}
             >
-              Create Account
+              Update Password
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-neutral-600">
-            Already have an account?{' '}
             <Link
               href="/login"
               className="font-medium text-primary-600 hover:text-primary-700"
             >
-              Sign in
+              Back to Sign In
             </Link>
           </div>
         </div>

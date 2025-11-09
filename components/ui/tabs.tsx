@@ -4,7 +4,8 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 interface TabsProps {
-  defaultValue: string
+  defaultValue?: string
+  value?: string
   children: React.ReactNode
   className?: string
   onValueChange?: (value: string) => void
@@ -35,11 +36,16 @@ const TabsContext = React.createContext<{
   onValueChange: () => {},
 })
 
-export function Tabs({ defaultValue, children, className, onValueChange }: TabsProps) {
-  const [value, setValue] = React.useState(defaultValue)
+export function Tabs({ defaultValue, value: valueProp, children, className, onValueChange }: TabsProps) {
+  const [internalValue, setInternalValue] = React.useState(defaultValue || '')
+  
+  // Use controlled value if provided, otherwise use internal state
+  const value = valueProp !== undefined ? valueProp : internalValue
 
   const handleValueChange = (newValue: string) => {
-    setValue(newValue)
+    if (valueProp === undefined) {
+      setInternalValue(newValue)
+    }
     onValueChange?.(newValue)
   }
 

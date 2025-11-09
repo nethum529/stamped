@@ -257,16 +257,15 @@ export default function AdverseMediaPage() {
                               </div>
                             </div>
                           </div>
-                          <Button variant="outline" size="sm" asChild>
-                            <a
-                              href={result.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View Source
-                            </a>
-                          </Button>
+                          <a
+                            href={result.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-300 h-9 px-3 text-sm border-2 border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50 hover:border-neutral-400 hover:-translate-y-0.5 active:bg-neutral-100 shadow-sm hover:shadow-md"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            View Source
+                          </a>
                         </div>
                       </div>
                     ))}

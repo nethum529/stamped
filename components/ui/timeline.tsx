@@ -54,7 +54,7 @@ export function Timeline({ items, className }: TimelineProps) {
             <div className="flex-1 pb-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h4 className="font-medium text-neutral-900">{item.title}</h4>
+                  <h4 className="font-sans font-medium text-neutral-900">{item.title}</h4>
                   {item.description && (
                     <p className="mt-1 text-sm text-neutral-600">
                       {item.description}
