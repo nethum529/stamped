@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import { Eye, EyeOff, CheckCircle, Mail } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { authService } from '@/lib/auth/service'
 import { validateSignUpForm } from '@/lib/auth/validation'
 
@@ -17,8 +16,6 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
-  const [requiresVerification, setRequiresVerification] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -42,7 +39,6 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setSuccess(false)
 
     if (!validateForm()) return
 
@@ -65,10 +61,9 @@ export default function SignUpPage() {
         return
       }
 
-      // Check if email verification is required
+      // Redirect to login with verification message
       if (result.requiresVerification) {
-        setRequiresVerification(true)
-        setSuccess(true)
+        router.push(`/login?verified=pending&email=${encodeURIComponent(formData.email)}`)
       } else {
         // User is automatically signed in, redirect to dashboard
         router.push('/dashboard')
@@ -81,103 +76,21 @@ export default function SignUpPage() {
     }
   }
 
-  const handleResendVerification = async () => {
-    setLoading(true)
-    setError('')
-
-    try {
-      const result = await authService.resendVerificationEmail(formData.email)
-      
-      if (result.success) {
-        setError('')
-        alert('Verification email sent! Please check your inbox.')
-      } else {
-        setError(result.error?.message || 'Failed to resend verification email')
-      }
-    } catch (err) {
-      setError('Failed to resend verification email. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Show success screen if email verification is required
-  if (success && requiresVerification) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100/30 to-neutral-50 p-4 md:p-6">
-        <div className="w-full max-w-md">
-          <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl">
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <Mail className="h-8 w-8 text-green-600" />
-              </div>
-              <h2 className="mb-2 text-2xl font-semibold text-neutral-900">
-                Verify Your Email
-              </h2>
-              <p className="mb-6 text-neutral-600">
-                We've sent a verification link to <strong>{formData.email}</strong>
-              </p>
-              <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
-                <p className="mb-2">Please check your email and click the verification link to activate your account.</p>
-                <p>Don't forget to check your spam folder!</p>
-              </div>
-              <div className="mt-6 space-y-3">
-                <Button
-                  onClick={handleResendVerification}
-                  variant="outline"
-                  className="w-full"
-                  loading={loading}
-                >
-                  Resend Verification Email
-                </Button>
-                <Link
-                  href="/login"
-                  className="block text-sm text-primary-600 hover:text-primary-700"
-                >
-                  Back to Sign In
-                </Link>
-              </div>
-              {error && (
-                <Alert variant="error" className="mt-4">
-                  {error}
-                </Alert>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100/30 to-neutral-50 p-4 md:p-6">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md animate-fade-in">
         <div className="rounded-2xl border border-neutral-200/50 bg-white/80 backdrop-blur-xl p-8 md:p-10 shadow-2xl transition-all duration-300 hover:shadow-3xl">
-          <div className="mb-6 flex items-center gap-4">
-            <div className="relative h-20 w-60 flex-shrink-0">
-              <Image
-                src="/logo.png"
-                alt="Stamped"
-                fill
-                className="object-contain object-left"
-                priority
-              />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-sans text-3xl font-semibold text-neutral-900">
-                Create account
-              </h2>
-              <p className="mt-1 font-sans italic text-base text-neutral-600">
-                compliance made simple.
-              </p>
-              <p className="mt-2 text-sm text-neutral-600">
-                Get started with your free account
-              </p>
-            </div>
+          <div className="mb-8">
+            <h2 className="text-3xl font-semibold text-neutral-900 mb-2">
+              Create Account
+            </h2>
+            <p className="text-neutral-600">
+              Get started with your free account
+            </p>
           </div>
 
           {error && (
-            <Alert variant="error" className="mb-6">
+            <Alert variant="error" className="mb-6 animate-fade-in">
               {error}
             </Alert>
           )}
@@ -225,7 +138,7 @@ export default function SignUpPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-9 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-3 top-9 text-neutral-400 hover:text-neutral-600 transition-colors"
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" />
@@ -251,7 +164,7 @@ export default function SignUpPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-9 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-3 top-9 text-neutral-400 hover:text-neutral-600 transition-colors"
               >
                 {showConfirmPassword ? (
                   <EyeOff className="h-5 w-5" />
@@ -265,20 +178,20 @@ export default function SignUpPage() {
               <input
                 type="checkbox"
                 required
-                className="mt-1 h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-500"
+                className="mt-1 h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-500 transition-all"
               />
               <span className="text-xs text-neutral-600">
                 I agree to the{' '}
                 <button
                   type="button"
-                  className="font-medium text-primary-600 hover:text-primary-700"
+                  className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
                 >
                   Terms of Service
                 </button>{' '}
                 and{' '}
                 <button
                   type="button"
-                  className="font-medium text-primary-600 hover:text-primary-700"
+                  className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
                 >
                   Privacy Policy
                 </button>
@@ -299,20 +212,13 @@ export default function SignUpPage() {
             Already have an account?{' '}
             <Link
               href="/login"
-              className="font-medium text-primary-600 hover:text-primary-700"
+              className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
             >
               Sign in
             </Link>
           </div>
         </div>
-
-        <div className="mt-6 text-center">
-          <p className="text-xs text-neutral-500">
-            © 2025 Stamped. All rights reserved.
-          </p>
-        </div>
       </div>
     </div>
   )
 }
-
