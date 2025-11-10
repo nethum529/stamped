@@ -1,4 +1,4 @@
-# Stamped | https://stampedpage.netlify.app/
+# Stamped | https://usestamped.us/
 
 **Stamped** is a secure and intelligent onboarding platform designed for financial institutions. It streamlines client and vendor onboarding with AI-powered features, multi-role dashboards, and comprehensive compliance tools.
 
